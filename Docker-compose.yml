@@ -1,0 +1,61 @@
+services:
+  backend:
+    build: ./api-rest-spa
+    container_name: spa-backend
+    ports:
+      - "3001:3001"
+    env_file:
+      - ./api-rest-spa/.env
+    depends_on:
+      - db_mongo
+      - db_postgres
+    networks:
+      - spa-net
+    volumes:
+      - ./api-rest-spa:/app
+      - /app/node_modules
+
+  frontend:
+    build: ./frontend-spa
+    container_name: spa-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - spa-net
+    volumes:
+      - ./frontend-spa:/app
+      - /app/node_modules
+
+  db_mongo:
+    image: mongo:6
+    container_name: spa-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - spa-net
+
+  db_postgres:
+    image: postgres:12
+    container_name: spa-postgres
+    environment:
+      POSTGRES_USER: Jordi
+      POSTGRES_PASSWORD: Mejia1017*
+      POSTGRES_DB: DB-SPA
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - spa-net
+
+volumes:
+  mongo-data:
+  postgres-data:
+
+networks:
+  spa-net:
+    driver: bridge
