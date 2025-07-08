@@ -6,11 +6,13 @@ const {
     update,
     changePassword,
     delete: deleteUser,
-    reactivate
+    reactivate,
+    getForCombobox
 } = require("../controllers/postgresql/usuarioController");
 const router = express.Router();
 
 // Rutas base http://localhost:3000/usuarios
+router.get('/combobox', getForCombobox);
 router.get("/", getAll);           // GET /usuarios - Obtener todos los usuarios con paginación y filtros
 router.get("/:id", getById);       // GET /usuarios/:id - Obtener usuario por ID
 router.post("/", create);          // POST /usuarios - Crear nuevo usuario

@@ -148,7 +148,7 @@ export const NavBar = () => {
                         key: 'servicios',
                         submenu: [
                             { name: 'Ver Servicios', icon: <RoomService />, path: '/empleado/servicios' },
-                            { name: 'Crear Servicio', icon: <RoomService />, path: '/empleado/servicios/crear' }
+                            // { name: 'Crear Servicio', icon: <RoomService />, path: '/empleado/servicios/crear' }
                         ]
                     },
                     {

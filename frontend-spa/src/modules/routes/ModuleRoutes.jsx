@@ -11,7 +11,7 @@ export const ModuleRoutes = () => {
     const getDefaultRoute = () => {
         switch (user?.rol) {
             case 'admin': return '/admin';
-            case 'empleado': return '/employe';
+            case 'empleado': return '/empleado';
             case 'cliente': return '/client';
             default: return '/unauthorized';
         }
@@ -32,7 +32,7 @@ export const ModuleRoutes = () => {
                 />
 
                 <Route
-                    path="/employe/*"
+                    path="/empleado/*"
                     element={
                         <ProtectedRoute allowedRoles={['admin', 'empleado']}>
                             <EmployeRoutes />

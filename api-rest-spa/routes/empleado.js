@@ -8,12 +8,13 @@ const {
     update,
     delete: deleteEmpleado,
     reactivate,
-    getAvailableByDay
-
+    getAvailableByDay,
+    getForCombobox
 } = require("../controllers/postgresql/empleadoController");
 const router = express.Router();
 
 // Rutas base http://localhost:3000/empleados
+router.get("/combobox", getForCombobox);
 router.get("/", getAll);                    // GET /empleados - Obtener todos los empleados con paginación y filtros
 router.get("/activos", getActive);          // GET /empleados/activos - Obtener solo empleados activos
 router.get("/:id", getById);                // GET /empleados/:id - Obtener empleado por ID

@@ -1,1 +1,1 @@
-export * from './EmployePages';
+export * from './EmployeDashboard';

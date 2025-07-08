@@ -267,7 +267,43 @@ const usuarioController = {
                 error: error.message
             });
         }
-    }
+    },
+
+    // Obtener usuarios para combobox
+    getForCombobox: async (req, res) => {
+        try {
+            const { rol, activo = 'true' } = req.query;
+
+            const whereClause = {};
+
+            // Filtros opcionales
+            if (rol) whereClause.rol = rol;
+            if (activo !== undefined) whereClause.activo = activo === 'true';
+
+            const usuarios = await Usuario.findAll({
+                where: whereClause,
+                attributes: ['id', 'nombre'], // Solo traer los campos necesarios
+                order: [['nombre', 'ASC']] // Ordenar alfabéticamente
+            });
+
+            // Formatear los datos para el combobox
+            const comboboxData = usuarios.map(usuario => ({
+                value: usuario.id,
+                label: usuario.nombre
+            }));
+
+            res.json({
+                success: true,
+                data: comboboxData
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: 'Error al obtener usuarios para combobox',
+                error: error.message
+            });
+        }
+    },
 };
 
 module.exports = usuarioController;

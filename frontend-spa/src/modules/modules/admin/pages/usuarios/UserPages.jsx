@@ -13,7 +13,7 @@ import ArchiveIcon from '@mui/icons-material/Archive';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RestoreIcon from '@mui/icons-material/Restore';
 import AddIcon from '@mui/icons-material/Add';
-import { useUserStore } from "../../../../store/modules/usuario/hooks";
+import { useUserStore } from "../../../../../store/modules/usuario/hooks";
 import { useNavigate } from "react-router-dom";
 
 export const UserPages = () => {

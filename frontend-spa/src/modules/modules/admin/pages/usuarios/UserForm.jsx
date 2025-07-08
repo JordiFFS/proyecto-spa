@@ -19,7 +19,7 @@ import {
     Alert
 } from '@mui/material';
 import { Save, Cancel } from '@mui/icons-material';
-import { useUserStore } from '../../../../store/modules/usuario/hooks';
+import { useUserStore } from '../../../../../store/modules/usuario/hooks';
 import { useNavigate } from 'react-router-dom';
 
 // Esquema de validación con Yup
@@ -70,7 +70,6 @@ export const UserForm = () => {
         errorAtributes,
         startSavingUser,
         startClearMessage,
-        startCloseUser
     } = useUserStore();
 
     const isEditing = Boolean(active?.id);
@@ -104,7 +103,6 @@ export const UserForm = () => {
             delete userData.isEditing;
 
             await startSavingUser(userData);
-            navigate('./..');
         }
     });
 

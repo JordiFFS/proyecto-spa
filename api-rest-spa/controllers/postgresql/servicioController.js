@@ -250,6 +250,36 @@ const servicioController = {
                 error: error.message
             });
         }
+    },
+    getForCombobox: async (req, res) => {
+        try {
+            const { activo = 'true' } = req.query;
+
+            const whereClause = {};
+            if (activo !== undefined) whereClause.activo = activo === 'true';
+
+            const servicios = await Servicio.findAll({
+                where: whereClause,
+                attributes: ['id', 'nombre'],
+                order: [['nombre', 'ASC']]
+            });
+
+            const comboboxData = servicios.map(servicio => ({
+                value: servicio.id,
+                label: servicio.nombre
+            }));
+
+            res.json({
+                success: true,
+                data: comboboxData
+            });
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: 'Error al obtener servicios para combobox',
+                error: error.message
+            });
+        }
     }
 };
 

@@ -337,7 +337,43 @@ const empleadoController = {
                 error: error.message
             });
         }
+    },
+    getForCombobox: async (req, res) => {
+        try {
+            const { activo = 'true' } = req.query;
+
+            const whereClause = {};
+            if (activo !== undefined) whereClause.activo = activo === 'true';
+
+            const empleados = await Empleado.findAll({
+                where: whereClause,
+                include: [{
+                    model: Usuario,
+                    attributes: ['nombre']
+                }],
+                attributes: ['id'],
+                order: [[{ model: Usuario }, 'nombre', 'ASC']]
+            });
+
+            const data = empleados.map(empleado => ({
+                value: empleado.id,
+                label: empleado.Usuario?.nombre || 'Sin nombre'
+            }));
+
+            res.json({
+                success: true,
+                data
+            });
+
+        } catch (error) {
+            res.status(500).json({
+                success: false,
+                message: 'Error al obtener empleados para combobox',
+                error: error.message
+            });
+        }
     }
 };
+
 
 module.exports = empleadoController;

@@ -8,9 +8,11 @@ const {
     delete: deleteServicio,
     reactivate,
     getStats,
+    getForCombobox
 } = require("../controllers/postgresql/servicioController");
 const router = express.Router();
 
+router.get("/combobox", getForCombobox);                    
 router.get("/", getAll);                    // GET /servicios - Obtener todos los servicios con paginación y filtros
 router.get("/activos", getActive);          // GET /servicios/activos - Obtener solo servicios activos
 router.get("/:id", getById);                // GET /servicios/:id - Obtener servicio por ID
