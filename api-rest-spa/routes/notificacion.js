@@ -9,10 +9,18 @@ const {
     marcarTodasComoLeidas,
     getNoLeidas,
     marcarComoEnviada,
+    getStats,
 } = require("../controllers/notificacion");
 
 const router = express.Router();
 
+
+/**
+ * @route   GET /api/notificaciones/stats
+ * @desc    Obtener estadísticas de notificaciones
+ * @access  Privado
+ */
+router.get("/stats", getStats);  // 🔥 ¡Esta debe ir antes que "/:id"!
 // Rutas CRUD básicas
 /**
  * @route   GET /api/notificaciones

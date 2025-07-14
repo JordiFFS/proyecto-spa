@@ -185,13 +185,14 @@ export const useDisponibilidadStore = () => {
                 const { data } = await spaApi.put(`/disponibilidad/${disponibilidadData.id}`, disponibilidadData);
                 dispatch(onUpdateDisponibilidad(data.data));
                 navigate(-1);
-                return;
+                return data;
             }
             // Crear nuevo registro
             const { data } = await spaApi.post('/disponibilidad', disponibilidadData);
             if (data.success) {
                 dispatch(onAddNewDisponibilidad(data.data));
                 navigate(-1);
+                return data;
             }
         } catch (error) {
             if (error.response?.status === 400) {

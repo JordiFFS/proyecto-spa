@@ -16,15 +16,54 @@ const getItems = async (req, res) => {
         if (leida !== undefined) filtros.leida = leida === 'true';
         if (canal) filtros.canal = canal;
 
+        // Obtener notificaciones
         const data = await notificacionModel.find(filtros)
             .sort({ createdAt: -1 })
             .limit(parseInt(limite));
 
-        res.send({ data, total: data.length });
+        // Obtener estadísticas
+        const total = await notificacionModel.countDocuments(filtros);
+        const leidas = await notificacionModel.countDocuments({ ...filtros, leida: true });
+        const no_leidas = await notificacionModel.countDocuments({ ...filtros, leida: false });
+
+        const estadisticas = {
+            total,
+            leidas,
+            no_leidas
+        };
+
+        res.send({ data, total, estadisticas });
     } catch (error) {
         res.status(500).send({ error: error.message });
     }
 };
+
+const getStats = async (req, res) => {
+    try {
+        const { usuario_id } = req.query;
+
+        const filtros = {};
+        if (usuario_id) filtros.usuario_id = parseInt(usuario_id);
+
+        const total = await notificacionModel.countDocuments(filtros);
+        const leidas = await notificacionModel.countDocuments({ ...filtros, leida: true });
+        const no_leidas = await notificacionModel.countDocuments({ ...filtros, leida: false });
+        const enviadas = await notificacionModel.countDocuments({ ...filtros, enviada: true });
+        const pendientes = await notificacionModel.countDocuments({ ...filtros, enviada: false });
+
+        res.send({
+            estadisticas: {
+                total,
+                no_leidas,
+                enviadas,
+                pendientes
+            }
+        });
+    } catch (error) {
+        res.status(500).send({ error: error.message });
+    }
+};
+
 
 /**
  * Obtener una notificación por ID
@@ -219,5 +258,6 @@ module.exports = {
     marcarComoLeida,
     marcarTodasComoLeidas,
     getNoLeidas,
-    marcarComoEnviada
+    marcarComoEnviada,
+    getStats
 };

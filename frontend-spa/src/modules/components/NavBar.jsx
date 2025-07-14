@@ -112,7 +112,7 @@ export const NavBar = () => {
                         icon: <Assessment />,
                         key: 'reportes',
                         submenu: [
-                            { name: 'Ventas', icon: <Assessment />, path: '/admin/reportes/ventas' },
+                            // { name: 'Ventas', icon: <Assessment />, path: '/admin/reportes/ventas' },
                             { name: 'Empleados', icon: <Group />, path: '/admin/reportes/empleados' },
                             { name: 'Servicios', icon: <RoomService />, path: '/admin/reportes/servicios' },
                             { name: 'Auditoría', icon: <History />, path: '/admin/auditoria' }

@@ -1,6 +1,6 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { authSlice } from "./authSlice";
-import { disponibilidadSlices, employeSlices, resservaSlices, serviceSlices, userSlices } from "./modules";
+import { auditoriaSlice, disponibilidadSlices, employeSlices, notificacionesSlices, resservaSlices, serviceSlices, sugerenciaSlice, userSlices } from "./modules";
 
 export const store = configureStore({
     reducer: {
@@ -13,5 +13,11 @@ export const store = configureStore({
         service: serviceSlices.reducer,
         disponibilidad: disponibilidadSlices.reducer,
         reserva: resservaSlices.reducer,
+
+        // Reportes Mongo
+        auditoria: auditoriaSlice.reducer,
+        notifiacion: notificacionesSlices.reducer,
+        sugerencia: sugerenciaSlice.reducer,
+
     }
 });

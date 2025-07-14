@@ -101,12 +101,14 @@ export const useServiceStore = () => {
                 const { data } = await spaApi.put(`/servicio/${serviceData.id}`, serviceData);
                 dispatch(onUpdateService(data.data));
                 navigate(-1);
-                return;
+                return data;
             }
             // Crear nuevo registro
             const { data } = await spaApi.post('/servicio', serviceData);
             if (data.success) {
                 dispatch(onAddNewService(data.data));
+                navigate(-1);
+                return data;
             }
         } catch (error) {
             if (error.response?.status === 400) {

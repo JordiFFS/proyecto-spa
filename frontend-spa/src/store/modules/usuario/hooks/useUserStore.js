@@ -71,7 +71,7 @@ export const useUserStore = () => {
                 const { data } = await spaApi.put(`/usuario/${userData.id}`, userData);
                 dispatch(onUpdateUser(data.data));
                 navigate(-1);
-                return;
+                return data;
             }
 
             // Creando
@@ -79,6 +79,7 @@ export const useUserStore = () => {
             if (data.success) {
                 startCloseUser();
                 dispatch(onAddNewUser(data.data));
+                return data;
             }
 
         } catch (error) {

@@ -141,13 +141,14 @@ export const useReservaStore = () => {
                 const { data } = await spaApi.put(`/reservacion/${reservaData.id}`, reservaData);
                 dispatch(onUpdateReserva(data.data));
                 navigate(-1);
-                return;
+                return data;
             }
             // Crear nuevo registro
             const { data } = await spaApi.post('/reservacion', reservaData);
             if (data.success) {
                 dispatch(onAddNewReserva(data.data));
                 navigate(-1);
+                return data;
             }
         } catch (error) {
             if (error.response?.status === 400) {

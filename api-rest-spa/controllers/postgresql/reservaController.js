@@ -1,3 +1,4 @@
+const { sequelize } = require("../../config/sequelize");
 const { Reserva, Usuario, Empleado, Servicio, Disponibilidad } = require("../../models/psql");
 const { Op } = require("sequelize");
 

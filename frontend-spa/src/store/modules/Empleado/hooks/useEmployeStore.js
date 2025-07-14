@@ -74,7 +74,7 @@ export const useEmployeStore = () => {
                 const { data } = await spaApi.put(`/empleado/${employeData.id}`, employeData);
                 dispatch(onUpdateEmploye(data.data));
                 navigate(-1);
-                return;
+                return data;
             }
             // Crear nuevo registro
             const { data } = await spaApi.post('/empleado', employeData);
@@ -82,6 +82,7 @@ export const useEmployeStore = () => {
                 // startCloseEmploye();
                 dispatch(onAddNewEmploye(data.data));
                 navigate(-1);
+                return data;
             }
         } catch (error) {
             if (error.response?.status === 400) {

@@ -17,7 +17,8 @@ import {
 } from '@mui/material';
 import { Save, Cancel, AttachMoney, Schedule } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useServiceStore } from '../../../../../store';
+import { useAuditoriaStore, useServiceStore } from '../../../../../store';
+import { useAuthStore } from '../../../../../hooks';
 
 // Esquema de validación con Yup
 const validationSchema = Yup.object({
@@ -55,6 +56,10 @@ export const ServicesForm = () => {
         startClearMessage,
     } = useServiceStore();
 
+    const { user } = useAuthStore();
+
+    const { startSavingAuditoria } = useAuditoriaStore();
+
     const isEditing = Boolean(active?.id);
 
     const formik = useFormik({
@@ -75,7 +80,44 @@ export const ServicesForm = () => {
                 id: active?.id
             };
 
-            await startSavingService(serviceData);
+            try {
+                const result = await startSavingService(serviceData);
+                if (result && result.success) {
+                    const auditoriaData = {
+                        usuario_id: user.id, // O el ID del usuario logueado
+                        accion: active?.id ? "UPDATE" : "CREATE",
+                        tabla_afectada: "servicios",
+                        registro_id: result.data.id,
+                        valores_anteriores: active?.id ? active : null,
+                        valores_nuevos: result.data,
+                        resultado: "exitoso",
+                        descripcion: active?.id
+                            ? `Servicio actualizado exitosamente`
+                            : `Servicio creado exitosamente`
+                    };
+
+                    // Registrar en auditoría (sin await para que no bloquee)
+                    startSavingAuditoria(auditoriaData).catch(error => {
+                        console.error('Error al registrar auditoría:', error);
+                    });
+                }
+            } catch (error) {
+                const auditoriaData = {
+                    usuario_id: user.id, // O el ID del usuario logueado
+                    accion: active?.id ? "UPDATE" : "CREATE",
+                    tabla_afectada: "reservas",
+                    registro_id: active?.id || null,
+                    valores_anteriores: active?.id ? active : null,
+                    valores_nuevos: serviceData,
+                    resultado: "error",
+                    descripcion: `Error al ${active?.id ? 'actualizar' : 'crear'} reserva: ${error.message}`
+                };
+
+                startSavingAuditoria(auditoriaData).catch(auditError => {
+                    console.error('Error al registrar auditoría de error:', auditError);
+                });
+            }
+
         }
     });
 

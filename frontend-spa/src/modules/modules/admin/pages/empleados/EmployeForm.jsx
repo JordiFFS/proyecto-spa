@@ -24,8 +24,9 @@ import {
 } from '@mui/material';
 import { Save, Cancel } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useEmployeStore } from '../../../../../store';
+import { useAuditoriaStore, useEmployeStore } from '../../../../../store';
 import { useGetComboxBox } from '../../../../components';
+import { useAuthStore } from '../../../../../hooks';
 
 // Días de la semana disponibles
 const diasSemana = [
@@ -80,7 +81,7 @@ const validationSchema = Yup.object({
     activo: Yup.boolean()
 });
 
-export const EmployeForm = ({ usuarios = [] }) => {
+export const EmployeForm = () => {
     const navigate = useNavigate();
 
     const {
@@ -92,6 +93,10 @@ export const EmployeForm = ({ usuarios = [] }) => {
         startSavingEmploye,
         startClearMessage,
     } = useEmployeStore();
+
+    const { user } = useAuthStore();
+
+    const { startSavingAuditoria } = useAuditoriaStore();
 
     const {
         user_cbx,
@@ -116,8 +121,43 @@ export const EmployeForm = ({ usuarios = [] }) => {
                 ...values,
                 id: active?.id
             };
+            try {
+                const result = await startSavingEmploye(employeData);
+                if (result && result.success) {
+                    const auditoriaData = {
+                        usuario_id: user.id, // O el ID del usuario logueado
+                        accion: active?.id ? "UPDATE" : "CREATE",
+                        tabla_afectada: "empleados",
+                        registro_id: result.data.id,
+                        valores_anteriores: active?.id ? active : null,
+                        valores_nuevos: result.data,
+                        resultado: "exitoso",
+                        descripcion: active?.id
+                            ? `Empleado actualizado exitosamente`
+                            : `Empleado creado exitosamente`
+                    };
 
-            await startSavingEmploye(employeData);
+                    // Registrar en auditoría (sin await para que no bloquee)
+                    startSavingAuditoria(auditoriaData).catch(error => {
+                        console.error('Error al registrar auditoría:', error);
+                    });
+                }
+            } catch (error) {
+                const auditoriaData = {
+                    usuario_id: user.id, // O el ID del usuario logueado
+                    accion: active?.id ? "UPDATE" : "CREATE",
+                    tabla_afectada: "empleados",
+                    registro_id: active?.id || null,
+                    valores_anteriores: active?.id ? active : null,
+                    valores_nuevos: employeData,
+                    resultado: "error",
+                    descripcion: `Error al ${active?.id ? 'actualizar' : 'crear'} el empleado: ${error.message}`
+                };
+
+                startSavingAuditoria(auditoriaData).catch(auditError => {
+                    console.error('Error al registrar auditoría de error:', auditError);
+                });
+            }
         }
     });
 
@@ -225,7 +265,7 @@ export const EmployeForm = ({ usuarios = [] }) => {
                                 }}
                             >
                                 <InputLabel
-                                    id="usuario-label"
+                                    _id="usuario-label"
                                     sx={{
                                         fontSize: '1.1rem',
                                         fontWeight: 500
@@ -235,7 +275,7 @@ export const EmployeForm = ({ usuarios = [] }) => {
                                 </InputLabel>
                                 <Select
                                     labelId="usuario-label"
-                                    id="usuario_id"
+                                    _id="usuario_id"
                                     name="usuario_id"
                                     value={formik.values.usuario_id}
                                     label="Usuario *"
@@ -284,7 +324,7 @@ export const EmployeForm = ({ usuarios = [] }) => {
                                             fontSize: '1rem',
                                             minHeight: '48px',
                                             padding: '12px 16px'
-                                        }
+                                        },
                                     }
                                 }}
                                 renderInput={(params) => (

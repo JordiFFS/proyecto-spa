@@ -252,7 +252,7 @@ export const AdminPages = () => {
                                         description="Registrar cliente"
                                         icon={<Add />}
                                         color="#667eea"
-                                        onClick={() => navigate('/admin/usuarios/crear')}
+                                        onClick={() => navigate('/admin/usuarios/form')}
                                     />
                                 </Grid>
                                 <Grid item xs={6}>

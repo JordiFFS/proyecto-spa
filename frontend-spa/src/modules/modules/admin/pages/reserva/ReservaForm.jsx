@@ -20,8 +20,9 @@ import {
 } from '@mui/material';
 import { Save, Cancel, Person, Work, Schedule, AttachMoney } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useReservaStore } from '../../../../../store';
+import { useAuditoriaStore, useReservaStore } from '../../../../../store';
 import { useGetComboxBox } from '../../../../components';
+import { useAuthStore } from '../../../../../hooks';
 
 // Estados predefinidos para reservas
 const estadosReserva = [
@@ -85,6 +86,10 @@ export const ReservaForm = () => {
         startClearMessage,
     } = useReservaStore();
 
+    const { user } = useAuthStore();
+
+    const { startSavingAuditoria } = useAuditoriaStore();
+
     const {
         users_cbx,
         userRol_cbx,
@@ -95,7 +100,7 @@ export const ReservaForm = () => {
     } = useGetComboxBox();
 
     const isEditing = Boolean(active?.id);
-    
+
     // Cargar datos de los comboboxes
     useEffect(() => {
         console.log('🔍 Iniciando carga de datos para comboboxes...');
@@ -136,7 +141,48 @@ export const ReservaForm = () => {
                 precio_total: parseFloat(values.precio_total)
             };
 
-            await startSavingReserva(reservaData);
+            try {
+                // Guardar la reserva
+                const result = await startSavingReserva(reservaData);
+
+                // Si la reserva se guardó exitosamente, crear el registro de auditoría
+                if (result && result.success) {
+                    const auditoriaData = {
+                        usuario_id: user.id, // O el ID del usuario logueado
+                        accion: active?.id ? "UPDATE" : "CREATE",
+                        tabla_afectada: "reservas",
+                        registro_id: result.data.id,
+                        valores_anteriores: active?.id ? active : null,
+                        valores_nuevos: result.data,
+                        resultado: "exitoso",
+                        // valores_nuevos: `Acción realizada por ${user.nombre} con rol ${user.rol} y telefono ${user.telefono}`,
+                        descripcion: active?.id
+                            ? `Reserva actualizada exitosamente`
+                            : `Reserva creada exitosamente`
+                    };
+
+                    // Registrar en auditoría (sin await para que no bloquee)
+                    startSavingAuditoria(auditoriaData).catch(error => {
+                        console.error('Error al registrar auditoría:', error);
+                    });
+                }
+            } catch (error) {
+                // Si hay error, también registrar en auditoría
+                const auditoriaData = {
+                    usuario_id: user.id, // O el ID del usuario logueado
+                    accion: active?.id ? "UPDATE" : "CREATE",
+                    tabla_afectada: "reservas",
+                    registro_id: active?.id || null,
+                    datos_anteriores: active?.id ? active : null,
+                    datos_nuevos: reservaData,
+                    resultado: "error",
+                    descripcion: `Error al ${active?.id ? 'actualizar' : 'crear'} reserva: ${error.message}`
+                };
+
+                startSavingAuditoria(auditoriaData).catch(auditError => {
+                    console.error('Error al registrar auditoría de error:', auditError);
+                });
+            }
         }
     });
 
@@ -376,7 +422,16 @@ export const ReservaForm = () => {
                                     name="servicio_id"
                                     value={formik.values.servicio_id}
                                     label="Servicio *"
-                                    onChange={formik.handleChange}
+                                    onChange={(event) => {
+                                        const selectedId = event.target.value;
+                                        const selectedServicio = servicio_cbx.find(s => s.value === selectedId);
+
+                                        formik.setFieldValue('servicio_id', selectedId);
+
+                                        if (selectedServicio) {
+                                            formik.setFieldValue('precio_total', selectedServicio.precio);
+                                        }
+                                    }}
                                     onBlur={formik.handleBlur}
                                     MenuProps={{
                                         PaperProps: {
@@ -403,6 +458,7 @@ export const ReservaForm = () => {
                                         ))
                                     )}
                                 </Select>
+
                                 <FormHelperText sx={{ fontSize: '0.9rem', mt: 1 }}>
                                     {formik.touched.servicio_id && formik.errors.servicio_id}
                                 </FormHelperText>
@@ -505,6 +561,7 @@ export const ReservaForm = () => {
                         <Grid item xs={12} md={6}>
                             <TextField
                                 fullWidth
+                                disabled
                                 id="precio_total"
                                 name="precio_total"
                                 label="Precio Total *"
@@ -515,7 +572,6 @@ export const ReservaForm = () => {
                                 onBlur={formik.handleBlur}
                                 error={formik.touched.precio_total && Boolean(formik.errors.precio_total)}
                                 helperText={formik.touched.precio_total && formik.errors.precio_total}
-                                disabled={isLoading}
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">

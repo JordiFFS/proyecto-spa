@@ -22,8 +22,9 @@ import {
 } from '@mui/material';
 import { Save, Cancel } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useDisponibilidadStore } from '../../../../../store';
+import { useAuditoriaStore, useDisponibilidadStore } from '../../../../../store';
 import { useGetComboxBox } from '../../../../components';
+import { useAuthStore } from '../../../../../hooks';
 
 // Motivos predefinidos para bloqueos
 const motivosBloqueo = [
@@ -83,13 +84,17 @@ export const DisponibilidadForm = () => {
         startClearMessage,
     } = useDisponibilidadStore();
 
+    const { user } = useAuthStore();
+
+    const { startSavingAuditoria } = useAuditoriaStore();
+
     const {
         userRol_cbx,
         startGetUserRolCbx
     } = useGetComboxBox();
 
     const isEditing = Boolean(active?.id);
-    
+
     useEffect(() => {
         console.log('🔍 Iniciando carga de empleados...');
         const loadEmployees = async () => {
@@ -123,7 +128,44 @@ export const DisponibilidadForm = () => {
                 motivo: values.disponible ? null : values.motivo
             };
 
-            await startSavingDisponibilidad(disponibilidadData);
+            try {
+                const result = await startSavingDisponibilidad(disponibilidadData);
+                if (result && result.success) {
+                    const auditoriaData = {
+                        usuario_id: user.id, // O el ID del usuario logueado
+                        accion: active?.id ? "UPDATE" : "CREATE",
+                        tabla_afectada: "disponibilidad",
+                        registro_id: result.data.id,
+                        valores_anteriores: active?.id ? active : null,
+                        valores_nuevos: result.data,
+                        resultado: "exitoso",
+                        descripcion: active?.id
+                            ? `Disponibilidad actualizada exitosamente`
+                            : `Disponibilidad creada exitosamente`
+                    };
+
+                    // Registrar en auditoría (sin await para que no bloquee)
+                    startSavingAuditoria(auditoriaData).catch(error => {
+                        console.error('Error al registrar auditoría:', error);
+                    });
+                }
+            } catch (error) {
+                const auditoriaData = {
+                    usuario_id: user.id, // O el ID del usuario logueado
+                    accion: active?.id ? "UPDATE" : "CREATE",
+                    tabla_afectada: "disponibilidad",
+                    registro_id: active?.id || null,
+                    valores_anteriores: active?.id ? active : null,
+                    valores_nuevos: disponibilidadData,
+                    resultado: "error",
+                    descripcion: `Error al ${active?.id ? 'actualizar' : 'crear'} disponibilidad: ${error.message}`
+                };
+
+                startSavingAuditoria(auditoriaData).catch(auditError => {
+                    console.error('Error al registrar auditoría de error:', auditError);
+                });
+            }
+
         }
     });
 

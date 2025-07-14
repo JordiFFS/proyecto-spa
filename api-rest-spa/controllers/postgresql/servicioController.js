@@ -1,3 +1,4 @@
+const { sequelize } = require('../../config/sequelize')
 const { Servicio } = require("../../models/psql");
 const { Op } = require("sequelize");
 
@@ -260,13 +261,14 @@ const servicioController = {
 
             const servicios = await Servicio.findAll({
                 where: whereClause,
-                attributes: ['id', 'nombre'],
+                attributes: ['id', 'nombre', 'precio'], // ← incluir precio
                 order: [['nombre', 'ASC']]
             });
 
             const comboboxData = servicios.map(servicio => ({
                 value: servicio.id,
-                label: servicio.nombre
+                label: servicio.nombre,
+                precio: parseFloat(servicio.precio) // ← agregar el precio en el resultado
             }));
 
             res.json({

@@ -4,3 +4,6 @@ export * from './servicios';
 export * from './usuarios';
 export * from './disponibilidad';
 export * from './reserva';
+export * from './reportes';
+export * from './notificaciones';
+export * from './sugerencias';

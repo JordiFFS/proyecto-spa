@@ -1,4 +1,4 @@
-import { AdminPages, DisponibilidadForm, DisponibilidadPages, EmployeForm, EmployePages, ReservacionCalendario, ReservaForm, ReservaPages, ReservaView, ServicesForm, ServicesPages, UserForm, UserPages } from '../pages'
+import { AdminPages, AuditoriaPages, DisponibilidadForm, DisponibilidadPages, EmployeForm, EmployePages, ReporteServicios, ReservacionCalendario, ReservaEstadisticas, ReservaForm, ReservaPages, ReservaView, ServicesForm, ServicesPages, UserForm, UserPages, NotificacionesPages, SugerenciaPages } from '../pages'
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 export const AdminRoutes = () => {
@@ -30,6 +30,19 @@ export const AdminRoutes = () => {
 
             {/* calendario */}
             <Route path="/calendario" element={<ReservacionCalendario />} />
+
+            {/* Historial */}
+            <Route path="/historial-reservas" element={<ReservaEstadisticas />} />
+
+            {/* Reportes */}
+            <Route path="/reportes/servicios" element={<ReporteServicios />} />
+            <Route path="/reportes/empleados" element={<ReporteServicios />} />
+            <Route path="/auditoria" element={<AuditoriaPages />} />
+
+            {/* Notificaciones */}
+            <Route path="/notificaciones" element={<NotificacionesPages />} />
+
+            <Route path="/sugerencias" element={<SugerenciaPages />} />
 
 
             <Route path="/*" element={<Navigate to="/" />} />

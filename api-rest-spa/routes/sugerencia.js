@@ -4,11 +4,13 @@ const {
     getItem,
     createItem,
     updateItem,
-    deleteItem
+    deleteItem,
+    getStats
 } = require("../controllers/sugerencia");
 const router = express.Router();
 
 // Rutas http://localhost:3000/tracks GET, POST, PUT, DELETE
+router.get("/stats", getStats);
 router.get("/", getItems);
 router.get("/:id", getItem);
 router.post("/", createItem);

@@ -21,6 +21,8 @@ import {
 import { Save, Cancel } from '@mui/icons-material';
 import { useUserStore } from '../../../../../store/modules/usuario/hooks';
 import { useNavigate } from 'react-router-dom';
+import { useAuditoriaStore } from '../../../../../store';
+import { useAuthStore } from '../../../../../hooks';
 
 // Esquema de validación con Yup
 const validationSchema = Yup.object({
@@ -72,6 +74,13 @@ export const UserForm = () => {
         startClearMessage,
     } = useUserStore();
 
+    const { startSavingAuditoria } = useAuditoriaStore();
+
+
+    const { user } = useAuthStore();
+
+    console.log('user:', user);
+
     const isEditing = Boolean(active?.id);
 
     const formik = useFormik({
@@ -102,7 +111,45 @@ export const UserForm = () => {
             delete userData.confirmPassword;
             delete userData.isEditing;
 
-            await startSavingUser(userData);
+            try {
+                const result = await startSavingUser(userData);
+                console.log('result', result);
+                if (result && result.success) {
+                    const auditoriaData = {
+                        usuario_id: user.id, // O el ID del usuario logueado
+                        accion: active?.id ? "UPDATE" : "CREATE",
+                        tabla_afectada: "usuarios",
+                        registro_id: result.data.id,
+                        valores_anteriores: active?.id ? active : null,
+                        valores_nuevos: result.data,
+                        resultado: "exitoso",
+                        descripcion: active?.id
+                            ? `Usuario actualizado exitosamente`
+                            : `Usuario creado exitosamente`
+                    };
+
+                    // Registrar en auditoría (sin await para que no bloquee)
+                    startSavingAuditoria(auditoriaData).catch(error => {
+                        console.error('Error al registrar auditoría:', error);
+                    });
+                }
+            } catch (error) {
+                const auditoriaData = {
+                    usuario_id: user.id, // O el ID del usuario logueado
+                    accion: active?.id ? "UPDATE" : "CREATE",
+                    tabla_afectada: "usuarios",
+                    registro_id: active?.id || null,
+                    valores_anteriores: active?.id ? active : null,
+                    valores_nuevos: userData,
+                    resultado: "error",
+                    descripcion: `Error al ${active?.id ? 'actualizar' : 'crear'} usuario: ${error.message}`
+                };
+
+                startSavingAuditoria(auditoriaData).catch(auditError => {
+                    console.error('Error al registrar auditoría de error:', auditError);
+                });
+            }
+
         }
     });
 
@@ -129,7 +176,7 @@ export const UserForm = () => {
     };
 
     return (
-        <Box sx={{ maxWidth: 600, margin: 'auto', p: 3 }}>
+        <Box sx={{ maxWidth: 1000, margin: 'auto', p: 3 }}>
             <Paper elevation={3} sx={{ p: 4 }}>
                 <Typography variant="h5" component="h1" gutterBottom>
                     {isEditing ? 'Editar Usuario' : 'Crear Usuario'}
