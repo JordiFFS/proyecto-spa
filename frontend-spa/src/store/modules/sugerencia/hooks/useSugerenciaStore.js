@@ -1,13 +1,11 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
 import { spaApi } from '../../../../api';
 import { onAddNewSugerencia, onClearMessageSugerencia, onCloseModalSugerencia, onConfirmDeleteSugerencia, onIsLoadingSugerencia, onLoadSugerencia, onReactivateSugerencia, onSendErrorMessageSugerencia, onSendServerErrorMessageSugerencia, onSetActiveSugerencia, onUpdateSugerencia } from '../slice';
 
 export const useSugerenciaStore = () => {
 
     const dispatch = useDispatch();
-    const navigate = useNavigate();
 
     const {
         isLoading,
@@ -266,7 +264,7 @@ export const useSugerenciaStore = () => {
     const startReactivateSugerencia = async (sugerenciaId) => {
         dispatch(onIsLoadingSugerencia());
         try {
-            const { data } = await spaApi.patch(`/sugerencia/${sugerenciaId}/reactivar`);
+            await spaApi.patch(`/sugerencia/${sugerenciaId}/reactivar`);
             dispatch(onReactivateSugerencia(sugerenciaId));
             dispatch(onSendServerErrorMessageSugerencia('Sugerencia reactivada correctamente'));
         } catch (error) {

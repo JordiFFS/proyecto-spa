@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Box,
     Paper,
@@ -28,7 +28,6 @@ import {
     InputLabel,
     Select,
     MenuItem,
-    Tooltip,
     Menu,
     ListItemIcon,
     ListItemText,
@@ -52,21 +51,12 @@ import {
     Cancel,
     Refresh,
     Person,
-    DateRange,
-    Assignment,
     Star,
     StarBorder,
     Info,
     Warning,
-    Error,
     Build,
     Schedule,
-    AccessTime,
-    TrendingUp,
-    Group,
-    Business,
-    Public,
-    Close
 } from '@mui/icons-material';
 import { useSugerenciaStore } from '../../../../../store/modules/sugerencia/hooks';
 import { useGetComboxBox } from '../../../../components';
