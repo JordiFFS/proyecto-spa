@@ -35,12 +35,13 @@ export const ServicesPages = () => {
 
     const rol = user?.rol || 'admin';
 
-    console.log('rol', user.rol);
-    console.log('services', services);
-
     useEffect(() => {
         startLoadingService();
     }, []);
+
+    const filteredServices = rol === 'cliente'
+        ? services.filter(service => service.activo)
+        : services;
 
     const columns = [
         { field: "id", headerName: "ID", width: 70 },
@@ -120,35 +121,45 @@ export const ServicesPages = () => {
 
                     if (result.isConfirmed) {
                         // Aquí agregarías un endpoint real de eliminación definitiva si lo tienes.
-                        console.log("Eliminar definitivamente servicio:", params.row.id);
                     }
                 };
 
                 return (
                     <>
-                        <Tooltip title="Editar">
-                            <IconButton onClick={handleEdit}>
-                                <EditIcon color="primary" />
-                            </IconButton>
-                        </Tooltip>
-                        {params.row.activo ? (
-                            <Tooltip title="Archivar">
-                                <IconButton onClick={handleArchive}>
-                                    <ArchiveIcon color="warning" />
-                                </IconButton>
-                            </Tooltip>
-                        ) : (
-                            <Tooltip title="Reactivar">
-                                <IconButton onClick={handleReactivate}>
-                                    <RestoreIcon color="success" />
+                        {/* Solo admin y empleado pueden editar */}
+                        {(rol === 'admin' || rol === 'empleado') && (
+                            <Tooltip title="Editar">
+                                <IconButton onClick={handleEdit}>
+                                    <EditIcon color="primary" />
                                 </IconButton>
                             </Tooltip>
                         )}
-                        <Tooltip title="Eliminar">
-                            <IconButton onClick={handleDelete}>
-                                <DeleteIcon color="error" />
-                            </IconButton>
-                        </Tooltip>
+
+                        {/* Solo admin puede archivar/reactivar */}
+                        {rol === 'admin' && (
+                            <>
+                                {params.row.activo ? (
+                                    <Tooltip title="Archivar">
+                                        <IconButton onClick={handleArchive}>
+                                            <ArchiveIcon color="warning" />
+                                        </IconButton>
+                                    </Tooltip>
+                                ) : (
+                                    <Tooltip title="Reactivar">
+                                        <IconButton onClick={handleReactivate}>
+                                            <RestoreIcon color="success" />
+                                        </IconButton>
+                                    </Tooltip>
+                                )}
+
+                                {/* Solo admin puede eliminar definitivamente */}
+                                <Tooltip title="Eliminar">
+                                    <IconButton onClick={handleDelete}>
+                                        <DeleteIcon color="error" />
+                                    </IconButton>
+                                </Tooltip>
+                            </>
+                        )}
                     </>
                 )
             }
@@ -164,16 +175,19 @@ export const ServicesPages = () => {
         <Box sx={{ p: 2 }}>
             <Box display="flex" justifyContent="space-between" mb={2}>
                 <Typography variant="h5">Servicios</Typography>
-                <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={onCreateService}
-                >
-                    Crear Servicio
-                </Button>
+                {/* Solo admin y empleado pueden crear servicios */}
+                {(rol === 'admin' || rol === 'empleado') && (
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={onCreateService}
+                    >
+                        Crear Servicio
+                    </Button>
+                )}
             </Box>
             <DataGrid
-                rows={services}
+                rows={filteredServices} // Cambiar de 'services' a 'filteredServices'
                 columns={columns}
                 pageSize={10}
                 rowsPerPageOptions={[10, 20, 50]}

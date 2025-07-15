@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link as RouterLink } from 'react-router-dom';
 import { useAuthStore } from "../../hooks"
 import { AuthLayout } from "../layout";
@@ -34,12 +34,10 @@ export const LoginPages = () => {
     const isAuthenticating = useMemo(() => status === 'checking', [status]);
 
     const onLogin = async (values) => {
-        const result = await startLogin({
+        await startLogin({
             email: values.email.trim(),
             password: values.password.trim()
         });
-
-        console.log('🔄 Resultado del login:', result);
     };
 
     return (

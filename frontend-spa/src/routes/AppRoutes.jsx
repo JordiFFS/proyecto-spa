@@ -7,11 +7,9 @@ import { CheckingAuth } from "../ui";
 export const AppRoutes = () => {
 
     const {
-        user,
+        // user,
         status,
     } = useAuthStore();
-
-    console.log(user.rol, status);
 
     if (status === 'checking') return <CheckingAuth msg="Validando credenciales ..." />;
 

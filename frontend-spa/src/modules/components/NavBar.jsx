@@ -137,7 +137,7 @@ export const NavBar = () => {
                         icon: <CalendarToday />,
                         key: 'agenda',
                         submenu: [
-                            { name: 'Reservas Hoy', icon: <EventNote />, path: '/empleado/reservas-hoy' },
+                            { name: 'Reservas Hoy', icon: <EventNote />, path: '/empleado/reservas' },
                             { name: 'Mis Reservas', icon: <Schedule />, path: '/empleado/mis-reservas' },
                             { name: 'Disponibilidad', icon: <Schedule />, path: '/empleado/disponibilidad' }
                         ]
@@ -157,7 +157,7 @@ export const NavBar = () => {
                         key: 'historial',
                         submenu: [
                             { name: 'Reservas Completadas', icon: <History />, path: '/empleado/historial' },
-                            { name: 'Calificaciones', icon: <Assessment />, path: '/empleado/calificaciones' }
+                            // { name: 'Calificaciones', icon: <Assessment />, path: '/empleado/calificaciones' }
                         ]
                     },
                     { name: 'Notificaciones', icon: <Notifications />, path: '/empleado/notificaciones' }
@@ -171,15 +171,15 @@ export const NavBar = () => {
                         icon: <EventNote />,
                         key: 'reservas',
                         submenu: [
-                            { name: 'Nueva Reserva', icon: <EventNote />, path: '/cliente/reservas/nueva' },
-                            { name: 'Mis Reservas', icon: <CalendarToday />, path: '/cliente/mis-reservas' },
-                            { name: 'Historial', icon: <History />, path: '/cliente/historial' }
+                            { name: 'Nueva Reserva', icon: <EventNote />, path: '/client/reservas' },
+                            { name: 'Mis Reservas', icon: <CalendarToday />, path: '/client/mis-reservas' },
+                            { name: 'Historial', icon: <History />, path: '/client/historial' }
                         ]
                     },
-                    { name: 'Servicios', icon: <RoomService />, path: '/cliente/servicios' },
-                    { name: 'Empleados', icon: <WorkOutline />, path: '/cliente/empleados' },
-                    { name: 'Notificaciones', icon: <Notifications />, path: '/cliente/notificaciones' },
-                    { name: 'Sugerencias', icon: <Feedback />, path: '/cliente/sugerencias' }
+                    { name: 'Servicios', icon: <RoomService />, path: '/client/servicios' },
+                    { name: 'Empleados', icon: <WorkOutline />, path: '/client/empleados' },
+                    { name: 'Notificaciones', icon: <Notifications />, path: '/client/notificaciones' },
+                    { name: 'Sugerencias', icon: <Feedback />, path: '/client/sugerencias' }
                 ];
 
             default:
@@ -374,7 +374,7 @@ export const NavBar = () => {
                                 {user.email}
                             </Typography>
                         </Box>
-                        <MenuItem
+                       {/*  <MenuItem
                             onClick={() => {
                                 handleUserMenuClose();
                                 navigate('/perfil');
@@ -407,7 +407,7 @@ export const NavBar = () => {
                         >
                             <Settings sx={{ mr: 2, color: '#667eea' }} />
                             Configuración
-                        </MenuItem>
+                        </MenuItem> */}
                         <Divider sx={{ my: 1 }} />
                         <MenuItem
                             onClick={handleLogout}

@@ -72,7 +72,6 @@ export const ReporteServicios = () => {
 
     const { startLoadingReserva, reservas } = useReservaStore();
 
-    console.log('reservas', reservas);
     const { startLoadingServiceStats } = useServiceStore();
 
     useEffect(() => {
@@ -173,8 +172,6 @@ export const ReporteServicios = () => {
     };
 
     const estadisticasReservas = calcularEstadisticasReservas();
-
-    console.log('estadisticasReservas', estadisticasReservas);
 
     const handleChangePage = (event, newPage) => {
         setPaginacion(prev => ({ ...prev, page: newPage }));

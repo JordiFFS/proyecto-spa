@@ -96,12 +96,9 @@ export const DisponibilidadForm = () => {
     const isEditing = Boolean(active?.id);
 
     useEffect(() => {
-        console.log('🔍 Iniciando carga de empleados...');
         const loadEmployees = async () => {
             try {
-                console.log('🔍 Llamando a startGetUserRolCbx...');
                 await startGetUserRolCbx('empleado');
-                console.log('✅ startGetUserRolCbx completado');
             } catch (error) {
                 console.error('❌ Error en startGetUserRolCbx:', error);
             }
@@ -309,7 +306,6 @@ export const DisponibilidadForm = () => {
                                         </MenuItem>
                                     ) : (
                                         userRol_cbx.map((empleado) => {
-                                            console.log('🔸 Renderizando empleado:', empleado);
                                             return (
                                                 <MenuItem key={empleado.value} value={empleado.value}>
                                                     {empleado.label}

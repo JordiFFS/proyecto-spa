@@ -103,16 +103,11 @@ export const ReservaForm = () => {
 
     // Cargar datos de los comboboxes
     useEffect(() => {
-        console.log('🔍 Iniciando carga de datos para comboboxes...');
         const loadComboBoxData = async () => {
             try {
-                console.log('🔍 Cargando usuarios...');
                 await startGetUsersCbx();
-                console.log('🔍 Cargando empleados...');
                 await startGetUserRolCbx('empleado');
-                console.log('🔍 Cargando servicios...');
                 await startGetServicioCbx();
-                console.log('✅ Datos de comboboxes cargados');
             } catch (error) {
                 console.error('❌ Error al cargar datos de comboboxes:', error);
             }
@@ -195,6 +190,9 @@ export const ReservaForm = () => {
                 }
             });
         }
+        if (user.rol === 'cliente' && !active?.id) {
+            formik.setFieldValue('usuario_id', user.id);
+        }
     }, [errorAtributes]);
 
     // Limpiar mensajes al desmontar o cambiar
@@ -268,7 +266,7 @@ export const ReservaForm = () => {
                             <FormControl
                                 fullWidth
                                 error={formik.touched.usuario_id && Boolean(formik.errors.usuario_id)}
-                                disabled={isLoading}
+                                disabled={isLoading || user.rol === 'cliente'} // ← CAMBIO AQUÍ
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
                                         minHeight: '56px',

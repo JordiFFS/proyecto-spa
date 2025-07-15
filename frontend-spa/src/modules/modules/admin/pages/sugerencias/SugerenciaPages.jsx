@@ -72,6 +72,7 @@ import { useSugerenciaStore } from '../../../../../store/modules/sugerencia/hook
 import { useGetComboxBox } from '../../../../components';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
+import { useAuthStore } from '../../../../../hooks';
 
 export const SugerenciaPages = () => {
     const {
@@ -89,6 +90,12 @@ export const SugerenciaPages = () => {
         startGetSugerenciasStats,
         startClearMessage
     } = useSugerenciaStore();
+
+    const {
+        user
+    } = useAuthStore();
+
+    const isCliente = user?.role === 'cliente' || user?.rol === 'cliente';
 
     const {
         user_cbx,
@@ -143,8 +150,6 @@ export const SugerenciaPages = () => {
         }
     });
 
-    console.log('estadisticas', estadisticas?.estadisticas);
-
     // Formulario para crear/editar sugerencia
     const formik = useFormik({
         initialValues: {
@@ -183,7 +188,7 @@ export const SugerenciaPages = () => {
         cargarSugerencias();
         cargarEstadisticas();
         startGetUserCbx();
-    }, [page, rowsPerPage, filtros]);
+    }, [page, rowsPerPage, filtros, user]);
 
     useEffect(() => {
         if (serverMessage || errorMessage) {
@@ -197,13 +202,16 @@ export const SugerenciaPages = () => {
         const params = {
             page: page + 1,
             limit: rowsPerPage,
-            ...filtros
+            ...filtros,
+            // Si es cliente, solo cargar sus sugerencias
+            ...(isCliente && { usuario_id: user._id || user.id })
         };
         await startLoadingSugerencias(params);
     };
 
     const cargarEstadisticas = async () => {
-        const stats = await startGetSugerenciasStats();
+        const statsParams = isCliente ? { usuario_id: user._id || user.id } : {};
+        const stats = await startGetSugerenciasStats(statsParams);
         setEstadisticas(stats);
     };
 
@@ -384,10 +392,13 @@ export const SugerenciaPages = () => {
                         </Badge>
                         <Box>
                             <Typography variant="h4" fontWeight="bold" color="primary">
-                                Gestión de Sugerencias
+                                {isCliente ? 'Mis Sugerencias' : 'Gestión de Sugerencias'}
                             </Typography>
                             <Typography variant="body1" color="text.secondary">
-                                Administra todas las sugerencias de los usuarios
+                                {isCliente
+                                    ? 'Visualiza y gestiona tus sugerencias enviadas'
+                                    : 'Administra todas las sugerencias de los usuarios'
+                                }
                             </Typography>
                         </Box>
                     </Box>
@@ -531,23 +542,25 @@ export const SugerenciaPages = () => {
                                 </Select>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={12} md={3}>
-                            <FormControl fullWidth>
-                                <InputLabel>Usuario</InputLabel>
-                                <Select
-                                    value={filtros.usuario_id}
-                                    label="Usuario"
-                                    onChange={(e) => handleFilterChange('usuario_id', e.target.value)}
-                                >
-                                    <MenuItem value="">Todos</MenuItem>
-                                    {Array.isArray(user_cbx) && user_cbx.map((usuario) => (
-                                        <MenuItem key={usuario.value} value={usuario.value}>
-                                            {usuario.label}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
+                        {!isCliente && (
+                            <Grid item xs={12} md={3}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Usuario</InputLabel>
+                                    <Select
+                                        value={filtros.usuario_id}
+                                        label="Usuario"
+                                        onChange={(e) => handleFilterChange('usuario_id', e.target.value)}
+                                    >
+                                        <MenuItem value="">Todos</MenuItem>
+                                        {Array.isArray(user_cbx) && user_cbx.map((usuario) => (
+                                            <MenuItem key={usuario.value} value={usuario.value}>
+                                                {usuario.label}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                        )}
                     </Grid>
                 </Paper>
             )}
@@ -625,7 +638,10 @@ export const SugerenciaPages = () => {
                                                     <Person />
                                                 </Avatar>
                                                 <Typography variant="body2">
-                                                    Usuario {sugerencia.usuario_id}
+                                                    {isCliente
+                                                        ? 'Tú'
+                                                        : `Usuario ${sugerencia.usuario_id}`
+                                                    }
                                                 </Typography>
                                             </Box>
                                         </TableCell>
@@ -667,12 +683,15 @@ export const SugerenciaPages = () => {
                                             </Box>
                                         </TableCell>
                                         <TableCell align="center">
-                                            <IconButton
-                                                onClick={(e) => handleMenuClick(e, sugerencia)}
-                                                size="small"
-                                            >
-                                                <MoreVert />
-                                            </IconButton>
+                                            {/* Solo mostrar menú si tiene permisos */}
+                                            {(!isCliente || (isCliente && sugerencia.usuario_id === (user._id || user.id))) && (
+                                                <IconButton
+                                                    onClick={(e) => handleMenuClick(e, sugerencia)}
+                                                    size="small"
+                                                >
+                                                    <MoreVert />
+                                                </IconButton>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -699,18 +718,20 @@ export const SugerenciaPages = () => {
             </Paper>
 
             {/* FAB para crear nueva sugerencia */}
-            <Fab
-                color="primary"
-                aria-label="add"
-                sx={{
-                    position: 'fixed',
-                    bottom: 16,
-                    right: 16,
-                }}
-                onClick={() => handleOpenModal()}
-            >
-                <Add />
-            </Fab>
+            {!isCliente && (
+                <Fab
+                    color="primary"
+                    aria-label="add"
+                    sx={{
+                        position: 'fixed',
+                        bottom: 16,
+                        right: 16,
+                    }}
+                    onClick={() => handleOpenModal()}
+                >
+                    <Add />
+                </Fab>
+            )}
 
             {/* Menu contextual */}
             <Menu
@@ -718,77 +739,85 @@ export const SugerenciaPages = () => {
                 open={Boolean(menuAnchorEl)}
                 onClose={handleMenuClose}
             >
-                <MenuItem onClick={() => handleOpenModal(selectedSugerencia)}>
-                    <ListItemIcon>
-                        <Edit fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Editar</ListItemText>
-                </MenuItem>
+                {/* Solo mostrar editar si es admin/empleado O si es cliente y es su sugerencia */}
+                {(!isCliente || (isCliente && selectedSugerencia?.usuario_id === (user._id || user.id))) && (
+                    <MenuItem onClick={() => handleOpenModal(selectedSugerencia)}>
+                        <ListItemIcon>
+                            <Edit fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Editar</ListItemText>
+                    </MenuItem>
+                )}
 
-                <MenuItem onClick={() => handleOpenRespuestaModal(selectedSugerencia)}>
-                    <ListItemIcon>
-                        <Reply fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Responder</ListItemText>
-                </MenuItem>
+                {/* Solo admin/empleados pueden responder */}
+                {!isCliente && (
+                    <MenuItem onClick={() => handleOpenRespuestaModal(selectedSugerencia)}>
+                        <ListItemIcon>
+                            <Reply fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Responder</ListItemText>
+                    </MenuItem>
+                )}
 
-                <Divider />
+                {/* Solo admin/empleados pueden cambiar estados */}
+                {!isCliente && (
+                    <>
+                        <Divider />
+                        <MenuItem onClick={() => handleCambiarEstado(selectedSugerencia._id, 'revisada')}>
+                            <ListItemIcon>
+                                <Warning fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Marcar como Revisada</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => handleCambiarEstado(selectedSugerencia._id, 'implementada')}>
+                            <ListItemIcon>
+                                <CheckCircle fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Marcar como Implementada</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => handleCambiarEstado(selectedSugerencia._id, 'rechazada')}>
+                            <ListItemIcon>
+                                <Cancel fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Marcar como Rechazada</ListItemText>
+                        </MenuItem>
+                        <Divider />
+                        <MenuItem onClick={() => handleCambiarPrioridad(selectedSugerencia._id, 'alta')}>
+                            <ListItemIcon>
+                                <Star fontSize="small" color="error" />
+                            </ListItemIcon>
+                            <ListItemText>Prioridad Alta</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => handleCambiarPrioridad(selectedSugerencia._id, 'media')}>
+                            <ListItemIcon>
+                                <StarBorder fontSize="small" color="warning" />
+                            </ListItemIcon>
+                            <ListItemText>Prioridad Media</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={() => handleCambiarPrioridad(selectedSugerencia._id, 'baja')}>
+                            <ListItemIcon>
+                                <StarBorder fontSize="small" color="success" />
+                            </ListItemIcon>
+                            <ListItemText>Prioridad Baja</ListItemText>
+                        </MenuItem>
+                    </>
+                )}
 
-                <MenuItem onClick={() => handleCambiarEstado(selectedSugerencia._id, 'revisada')}>
-                    <ListItemIcon>
-                        <Warning fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Marcar como Revisada</ListItemText>
-                </MenuItem>
-
-                <MenuItem onClick={() => handleCambiarEstado(selectedSugerencia._id, 'implementada')}>
-                    <ListItemIcon>
-                        <CheckCircle fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Marcar como Implementada</ListItemText>
-                </MenuItem>
-
-                <MenuItem onClick={() => handleCambiarEstado(selectedSugerencia._id, 'rechazada')}>
-                    <ListItemIcon>
-                        <Cancel fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Marcar como Rechazada</ListItemText>
-                </MenuItem>
-
-                <Divider />
-
-                <MenuItem onClick={() => handleCambiarPrioridad(selectedSugerencia._id, 'alta')}>
-                    <ListItemIcon>
-                        <Star fontSize="small" color="error" />
-                    </ListItemIcon>
-                    <ListItemText>Prioridad Alta</ListItemText>
-                </MenuItem>
-
-                <MenuItem onClick={() => handleCambiarPrioridad(selectedSugerencia._id, 'media')}>
-                    <ListItemIcon>
-                        <StarBorder fontSize="small" color="warning" />
-                    </ListItemIcon>
-                    <ListItemText>Prioridad Media</ListItemText>
-                </MenuItem>
-
-                <MenuItem onClick={() => handleCambiarPrioridad(selectedSugerencia._id, 'baja')}>
-                    <ListItemIcon>
-                        <StarBorder fontSize="small" color="success" />
-                    </ListItemIcon>
-                    <ListItemText>Prioridad Baja</ListItemText>
-                </MenuItem>
-
-                <Divider />
-
-                <MenuItem
-                    onClick={() => handleDeleteConfirm(selectedSugerencia)}
-                    sx={{ color: 'error.main' }}
-                >
-                    <ListItemIcon>
-                        <Delete fontSize="small" color="error" />
-                    </ListItemIcon>
-                    <ListItemText>Eliminar</ListItemText>
-                </MenuItem>
+                {/* Solo admin/empleados pueden eliminar, o cliente si es su sugerencia */}
+                {(!isCliente || (isCliente && selectedSugerencia?.usuario_id === (user._id || user.id))) && (
+                    <>
+                        <Divider />
+                        <MenuItem
+                            onClick={() => handleDeleteConfirm(selectedSugerencia)}
+                            sx={{ color: 'error.main' }}
+                        >
+                            <ListItemIcon>
+                                <Delete fontSize="small" color="error" />
+                            </ListItemIcon>
+                            <ListItemText>Eliminar</ListItemText>
+                        </MenuItem>
+                    </>
+                )}
             </Menu>
 
             {/* Modal para crear/editar sugerencia */}

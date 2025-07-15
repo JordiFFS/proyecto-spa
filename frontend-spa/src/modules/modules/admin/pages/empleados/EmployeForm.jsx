@@ -161,7 +161,6 @@ export const EmployeForm = () => {
         }
     });
 
-    console.log('user_cbx', user_cbx);
     useEffect(() => {
         startGetUserCbx();
     }, [])

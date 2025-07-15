@@ -24,6 +24,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useReservaStore } from "../../../../../store";
+import { useAuthStore } from "../../../../../hooks";
 
 export const ReservaPages = () => {
     const navigate = useNavigate();
@@ -48,12 +49,37 @@ export const ReservaPages = () => {
         startChangeReservaStatus,
     } = useReservaStore();
 
+    const {
+        user
+    } = useAuthStore();
+
+    console.log('reservas', reservas);
+    console.log('user', user);
+
     useEffect(() => {
-        startLoadingReserva();
-    }, []);
+        // Agregar filtro automático según el rol del usuario
+        const roleFilters = {};
+
+        if (user.rol === 'cliente') {
+            roleFilters.usuario_id = user.id;
+        } else if (user.rol === 'empleado') {
+            // Asumiendo que tienes el empleado_id en el user object
+            roleFilters.search = reservas.empleado_id; // o como tengas configurado
+        }
+
+        startLoadingReserva(roleFilters);
+    }, [user]);
 
     const handleFilterChange = (field, value) => {
         const newFilters = { ...filters, [field]: value };
+
+        // Mantener filtros automáticos según el rol
+        if (user.rol === 'cliente') {
+            newFilters.usuario_id = user.id;
+        } else if (user.rol === 'empleado') {
+            newFilters.search = reservas.empleado_id;
+        }
+
         setFilters(newFilters);
 
         // Aplicar filtros con debounce para search
@@ -180,13 +206,23 @@ export const ReservaPages = () => {
             width: 220,
             renderCell: (params) => {
                 const handleView = () => {
-                    startSetActiveReserva(params.row);
-                    navigate(`/admin/reservas/view?id=${params.row.id}`);
+                    if (user.rol === 'cliente') {
+                        startSetActiveReserva(params.row);
+                        navigate(`/client/reservas/view?id=${params.row.id}`);
+                    } else {
+                        startSetActiveReserva(params.row);
+                        navigate(`/admin/reservas/view?id=${params.row.id}`);
+                    }
                 };
 
                 const handleEdit = () => {
-                    startSetActiveReserva(params.row);
-                    navigate(`/admin/reservas/form?id=${params.row.id}`);
+                    if (user.rol === 'cliente') {
+                        startSetActiveReserva(params.row);
+                        navigate(`/client/reservas/form?id=${params.row.id}`);
+                    } else {
+                        startSetActiveReserva(params.row);
+                        navigate(`/admin/reservas/form?id=${params.row.id}`);
+                    }
                 };
 
                 const handleStatusChange = async (newStatus) => {
@@ -209,8 +245,8 @@ export const ReservaPages = () => {
                     if (result.isConfirmed) {
                         await startChangeReservaStatus(params.row.id, newStatus);
                         Swal.fire(
-                            "Actualizado", 
-                            `La reserva ha sido ${statusMessages[newStatus]}da.`, 
+                            "Actualizado",
+                            `La reserva ha sido ${statusMessages[newStatus]}da.`,
                             "success"
                         );
                         startLoadingReserva();
@@ -237,22 +273,27 @@ export const ReservaPages = () => {
 
                 return (
                     <Box display="flex" gap={0.5}>
+                        {/* Ver detalles - Todos los roles */}
                         <Tooltip title="Ver detalles">
                             <IconButton onClick={handleView} size="small">
                                 <VisibilityIcon color="info" />
                             </IconButton>
                         </Tooltip>
-                        
-                        <Tooltip title="Editar">
-                            <IconButton onClick={handleEdit} size="small">
-                                <EditIcon color="primary" />
-                            </IconButton>
-                        </Tooltip>
 
-                        {params.row.estado === 'pendiente' && (
+                        {/* Editar - Solo cliente (sus propias reservas) y admin */}
+                        {(user.rol === 'cliente' || user.rol === 'admin') && (
+                            <Tooltip title="Editar">
+                                <IconButton onClick={handleEdit} size="small">
+                                    <EditIcon color="primary" />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+
+                        {/* Confirmar - Solo empleado y admin */}
+                        {(user.rol === 'empleado' || user.rol === 'admin') && params.row.estado === 'pendiente' && (
                             <Tooltip title="Confirmar">
-                                <IconButton 
-                                    onClick={() => handleStatusChange('confirmada')} 
+                                <IconButton
+                                    onClick={() => handleStatusChange('confirmada')}
                                     size="small"
                                 >
                                     <CheckIcon color="success" />
@@ -260,21 +301,24 @@ export const ReservaPages = () => {
                             </Tooltip>
                         )}
 
-                        {(params.row.estado === 'pendiente' || params.row.estado === 'confirmada') && (
-                            <Tooltip title="Cancelar">
-                                <IconButton 
-                                    onClick={() => handleStatusChange('cancelada')} 
-                                    size="small"
-                                >
-                                    <CancelIcon color="error" />
-                                </IconButton>
-                            </Tooltip>
-                        )}
+                        {/* Cancelar - Cliente (sus reservas), empleado y admin */}
+                        {(user.rol === 'cliente' || user.rol === 'empleado' || user.rol === 'admin') &&
+                            (params.row.estado === 'pendiente' || params.row.estado === 'confirmada') && (
+                                <Tooltip title="Cancelar">
+                                    <IconButton
+                                        onClick={() => handleStatusChange('cancelada')}
+                                        size="small"
+                                    >
+                                        <CancelIcon color="error" />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
 
-                        {params.row.estado === 'confirmada' && (
+                        {/* Completar - Solo empleado y admin */}
+                        {(user.rol === 'empleado' || user.rol === 'admin') && params.row.estado === 'confirmada' && (
                             <Tooltip title="Completar">
-                                <IconButton 
-                                    onClick={() => handleStatusChange('completada')} 
+                                <IconButton
+                                    onClick={() => handleStatusChange('completada')}
                                     size="small"
                                 >
                                     <CheckIcon color="info" />
@@ -282,11 +326,14 @@ export const ReservaPages = () => {
                             </Tooltip>
                         )}
 
-                        <Tooltip title="Eliminar">
-                            <IconButton onClick={handleDelete} size="small">
-                                <DeleteIcon color="error" />
-                            </IconButton>
-                        </Tooltip>
+                        {/* Eliminar - Solo admin */}
+                        {user.rol === 'admin' && (
+                            <Tooltip title="Eliminar">
+                                <IconButton onClick={handleDelete} size="small">
+                                    <DeleteIcon color="error" />
+                                </IconButton>
+                            </Tooltip>
+                        )}
                     </Box>
                 );
             }
@@ -309,14 +356,20 @@ export const ReservaPages = () => {
     return (
         <Box sx={{ p: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h5">Reservas</Typography>
-                <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={onCreateReserva}
-                >
-                    Crear Reserva
-                </Button>
+                <Typography variant="h5">
+                    {user.rol === 'cliente' ? 'Mis Reservas' :
+                        user.rol === 'empleado' ? 'Reservas Asignadas' : 'Reservas'}
+                </Typography>
+                {/* Solo mostrar botón crear para cliente y admin */}
+                {(user.rol === 'cliente' || user.rol === 'admin') && (
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={onCreateReserva}
+                    >
+                        Crear Reserva
+                    </Button>
+                )}
             </Box>
 
             {/* Filtros */}
@@ -392,17 +445,26 @@ export const ReservaPages = () => {
                             variant="outlined"
                             fullWidth
                             onClick={() => {
-                                setFilters({ 
-                                    search: '', 
-                                    fecha: '', 
-                                    fecha_inicio: '', 
-                                    fecha_fin: '', 
-                                    usuario_id: '', 
-                                    empleado_id: '', 
-                                    servicio_id: '', 
-                                    estado: '' 
-                                });
-                                startLoadingReserva();
+                                const baseFilters = {
+                                    search: '',
+                                    fecha: '',
+                                    fecha_inicio: '',
+                                    fecha_fin: '',
+                                    usuario_id: '',
+                                    empleado_id: '',
+                                    servicio_id: '',
+                                    estado: ''
+                                };
+
+                                // Mantener filtros automáticos según el rol
+                                if (user.rol === 'cliente') {
+                                    baseFilters.usuario_id = user.id;
+                                } else if (user.rol === 'empleado') {
+                                    baseFilters.empleado_id = user.empleado_id;
+                                }
+
+                                setFilters(baseFilters);
+                                startLoadingReserva(baseFilters);
                             }}
                         >
                             Limpiar Filtros

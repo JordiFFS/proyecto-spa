@@ -21,6 +21,7 @@ import {
     Assessment
 } from '@mui/icons-material';
 import { useReservaStore } from '../../../../../store';
+import { useAuthStore } from '../../../../../hooks';
 
 export const ReservaEstadisticas = () => {
     const [estadisticas, setEstadisticas] = useState(null);
@@ -28,6 +29,10 @@ export const ReservaEstadisticas = () => {
     const [error, setError] = useState(null);
 
     const { startLoadingReservaStats } = useReservaStore();
+
+    const {
+        user
+    } = useAuthStore();
 
     useEffect(() => {
         cargarEstadisticas();
@@ -37,12 +42,27 @@ export const ReservaEstadisticas = () => {
         setCargando(true);
         setError(null);
         try {
-            const data = await startLoadingReservaStats();
-            if (data && data.success) {
-                setEstadisticas(data.data);
+            // Enviar el rol y ID del usuario para filtrar las estadísticas
+            if (user.rol === "cliente") {
+                const filtros = {
+                    rol: user.rol, 
+                    userId: user.id
+                };
+                const data = await startLoadingReservaStats(filtros);
+                if (data && data.success) {
+                    setEstadisticas(data.data);
+                } else {
+                    setError('No se pudieron cargar las estadísticas');
+                }
             } else {
-                setError('No se pudieron cargar las estadísticas');
+                const data = await startLoadingReservaStats();
+                if (data && data.success) {
+                    setEstadisticas(data.data);
+                } else {
+                    setError('No se pudieron cargar las estadísticas');
+                }
             }
+
         } catch (error) {
             console.error('Error cargando estadísticas:', error);
             setError('Error al cargar las estadísticas');

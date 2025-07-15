@@ -22,6 +22,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useDisponibilidadStore } from "../../../../../store";
+import { useAuthStore } from "../../../../../hooks";
 
 export const DisponibilidadPages = () => {
     const navigate = useNavigate();
@@ -43,12 +44,26 @@ export const DisponibilidadPages = () => {
         startUnblockSchedule,
     } = useDisponibilidadStore();
 
+    const {
+        user
+    } = useAuthStore();
+
     useEffect(() => {
-        startLoadingDisponibilidad();
-    }, []);
+        if (user?.rol === 'empleado') {
+            startLoadingDisponibilidad({ search: disponibilidades.empleado_id });
+        } else {
+            startLoadingDisponibilidad();
+        }
+    }, [user]);
 
     const handleFilterChange = (field, value) => {
         const newFilters = { ...filters, [field]: value };
+
+        // Si es empleado, siempre incluir su ID en los filtros
+        if (user?.rol === 'empleado') {
+            newFilters.empleado_id = user.id;
+        }
+
         setFilters(newFilters);
 
         // Aplicar filtros con debounce para search
@@ -114,7 +129,7 @@ export const DisponibilidadPages = () => {
         {
             field: "acciones",
             headerName: "Acciones",
-            width: 180,
+            width: user?.rol === 'empleado' ? 60 : 180,
             renderCell: (params) => {
                 const handleEdit = () => {
                     startSetActiveDisponibilidad(params.row);
@@ -147,7 +162,7 @@ export const DisponibilidadPages = () => {
                             motivo: motivo
                         });
                         Swal.fire("Bloqueado", "El horario ha sido bloqueado.", "success");
-                        startLoadingDisponibilidad();
+                        startLoadingDisponibilidad(user?.rol === 'empleado' ? { empleado_id: user.id } : {});
                     }
                 };
 
@@ -164,7 +179,7 @@ export const DisponibilidadPages = () => {
                     if (result.isConfirmed) {
                         await startUnblockSchedule(params.row.id);
                         Swal.fire("Desbloqueado", "El horario ha sido desbloqueado.", "success");
-                        startLoadingDisponibilidad();
+                        startLoadingDisponibilidad(user?.rol === 'empleado' ? { empleado_id: user.id } : {});
                     }
                 };
 
@@ -181,10 +196,24 @@ export const DisponibilidadPages = () => {
                     if (result.isConfirmed) {
                         await startDeletingDisponibilidad(params.row);
                         Swal.fire("Eliminado", "La disponibilidad ha sido eliminada.", "success");
-                        startLoadingDisponibilidad();
+                        startLoadingDisponibilidad(user?.rol === 'empleado' ? { empleado_id: user.id } : {});
                     }
                 };
 
+                // Si es empleado, solo mostrar el botón de editar
+                if (user?.rol === 'empleado') {
+                    return (
+                        <Box display="flex" gap={0.5}>
+                            <Tooltip title="Ver detalles">
+                                <IconButton onClick={handleEdit} size="small">
+                                    <EditIcon color="primary" />
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
+                    );
+                }
+
+                // Si es admin, mostrar todas las acciones
                 return (
                     <Box display="flex" gap={0.5}>
                         <Tooltip title="Editar">
@@ -230,7 +259,9 @@ export const DisponibilidadPages = () => {
     return (
         <Box sx={{ p: 2 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h5">Disponibilidad</Typography>
+                <Typography variant="h5">
+                    {user?.rol === 'empleado' ? 'Mi Disponibilidad' : 'Disponibilidad'}
+                </Typography>
                 <Button
                     variant="contained"
                     startIcon={<AddIcon />}
@@ -285,8 +316,12 @@ export const DisponibilidadPages = () => {
                             variant="outlined"
                             fullWidth
                             onClick={() => {
-                                setFilters({ search: '', fecha: '', empleado_id: '', disponible: '' });
-                                startLoadingDisponibilidad();
+                                const newFilters = { search: '', fecha: '', empleado_id: '', disponible: '' };
+                                if (user?.rol === 'empleado') {
+                                    newFilters.empleado_id = user.id;
+                                }
+                                setFilters(newFilters);
+                                startLoadingDisponibilidad(user?.rol === 'empleado' ? { empleado_id: user.id } : {});
                             }}
                         >
                             Limpiar Filtros

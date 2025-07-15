@@ -79,8 +79,6 @@ export const UserForm = () => {
 
     const { user } = useAuthStore();
 
-    console.log('user:', user);
-
     const isEditing = Boolean(active?.id);
 
     const formik = useFormik({
@@ -113,7 +111,6 @@ export const UserForm = () => {
 
             try {
                 const result = await startSavingUser(userData);
-                console.log('result', result);
                 if (result && result.success) {
                     const auditoriaData = {
                         usuario_id: user.id, // O el ID del usuario logueado

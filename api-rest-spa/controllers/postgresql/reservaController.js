@@ -548,17 +548,41 @@ const reservaController = {
   // Obtener estadísticas de reservas
   getStats: async (req, res) => {
     try {
-      const totalReservas = await Reserva.count();
-      const reservasPendientes = await Reserva.count({ where: { estado: 'pendiente' } });
-      const reservasConfirmadas = await Reserva.count({ where: { estado: 'confirmada' } });
-      const reservasCompletadas = await Reserva.count({ where: { estado: 'completada' } });
-      const reservasCanceladas = await Reserva.count({ where: { estado: 'cancelada' } });
+      const { rol, userId } = req.query;
+
+      // Construir el filtro base según el rol
+      let whereClause = {};
+
+      if (rol === 'cliente') {
+        whereClause.usuario_id = userId;
+      } else if (rol === 'empleado') {
+        whereClause.empleado_id = userId;
+      }
+      // Si es admin o no hay rol, no se aplica filtro (muestra todas las reservas)
+
+      const totalReservas = await Reserva.count({ where: whereClause });
+
+      const reservasPendientes = await Reserva.count({
+        where: { ...whereClause, estado: 'pendiente' }
+      });
+
+      const reservasConfirmadas = await Reserva.count({
+        where: { ...whereClause, estado: 'confirmada' }
+      });
+
+      const reservasCompletadas = await Reserva.count({
+        where: { ...whereClause, estado: 'completada' }
+      });
+
+      const reservasCanceladas = await Reserva.count({
+        where: { ...whereClause, estado: 'cancelada' }
+      });
 
       const ingresoTotal = await Reserva.findOne({
         attributes: [
           [sequelize.fn('SUM', sequelize.col('precio_total')), 'total']
         ],
-        where: { estado: 'completada' }
+        where: { ...whereClause, estado: 'completada' }
       });
 
       res.json({

@@ -32,6 +32,7 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useReservaStore } from "../../../../../store";
 import Swal from 'sweetalert2';
+import { useAuthStore } from "../../../../../hooks";
 
 export const ReservaView = () => {
     const navigate = useNavigate();
@@ -44,6 +45,10 @@ export const ReservaView = () => {
         startDeletingReserva,
         startChangeReservaStatus,
     } = useReservaStore();
+
+    const {
+        user
+    } = useAuthStore();
 
     useEffect(() => {
         if (reservaId) {
@@ -197,7 +202,7 @@ export const ReservaView = () => {
                         Editar
                     </Button> */}
 
-                    {reserva.estado === 'pendiente' && (
+                    {reserva.estado === 'pendiente' && user.rol === 'admin' && (
                         <Button
                             variant="contained"
                             color="success"

@@ -105,7 +105,6 @@ export const UserPages = () => {
 
                     if (result.isConfirmed) {
                         // Aquí agregarías un endpoint real de eliminación definitiva si lo tienes.
-                        console.log("Eliminar definitivamente a:", params.row.id);
                     }
                 };
                 return (

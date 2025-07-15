@@ -10,7 +10,6 @@ export const useGetComboxBox = () => {
     const startGetUserCbx = async () => {
         try {
             const { data } = await spaApi.get('/usuario/combobox?activo=true');
-            console.log("Respuesta de API:", data); // para debug
             setUser_cbx(Array.isArray(data?.data) ? data.data : []);
         } catch (error) {
             console.error("Error al obtener usuarios:", error);
@@ -21,7 +20,6 @@ export const useGetComboxBox = () => {
     const startGetUsersCbx = async () => {
         try {
             const { data } = await spaApi.get('/usuario/combobox');
-            console.log("Respuesta de API:", data); // para debug
             setUsers_cbx(Array.isArray(data?.data) ? data.data : []);
         } catch (error) {
             console.error("Error al obtener usuarios:", error);
@@ -32,7 +30,6 @@ export const useGetComboxBox = () => {
     const startGetUserRolCbx = async (rol) => {
         try {
             const { data } = await spaApi.get(`/empleado/combobox?rol=${rol}`);
-            console.log("Respuesta de API:", data); // para debug
             setUserRol_cbx(Array.isArray(data?.data) ? data.data : []);
         } catch (error) {
             console.error("Error al obtener usuarios:", error);
@@ -43,7 +40,6 @@ export const useGetComboxBox = () => {
     const startGetServicioCbx = async () => {
         try {
             const { data } = await spaApi.get('/servicio/combobox');
-            console.log("Respuesta de API:", data); // para debug
             setServicio_cbx(Array.isArray(data?.data) ? data.data : []);
         } catch (error) {
             console.error("Error al obtener servicios:", error);

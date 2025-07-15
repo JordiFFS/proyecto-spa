@@ -3,7 +3,6 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useAuthStore } from "../../hooks"
 import { AuthLayout } from "../layout";
 import register from '/img/foto6.webp'; // Usa la misma imagen o cambia por una específica
-import logo from '/img/logo.jpg';
 import {
     Alert,
     Box,
@@ -47,11 +46,9 @@ export const RegisterPages = () => {
 
     const onRegister = async (values) => {
         // Eliminamos confirmPassword antes de enviar al servidor
-        const { confirmPassword, ...registerData } = values;
+        const { ...registerData } = values;
 
-        console.log(confirmPassword);
-
-        const result = await startRegister({
+        await startRegister({
             nombre: registerData.nombre.trim(),
             email: registerData.email.trim(),
             password: registerData.password.trim(),
@@ -59,7 +56,6 @@ export const RegisterPages = () => {
             rol: registerData.rol
         });
 
-        console.log('🔄 Resultado del registro:', result);
     };
 
     useEffect(() => {

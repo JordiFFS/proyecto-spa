@@ -63,6 +63,7 @@ import { useNotificacionesStore } from '../../../../../store/modules/notificacio
 import { useGetComboxBox } from '../../../../components';
 import * as Yup from 'yup';
 import { useFormik } from 'formik';
+import { useAuthStore } from '../../../../../hooks';
 
 export const NotificacionesPages = () => {
     const {
@@ -79,6 +80,10 @@ export const NotificacionesPages = () => {
         startGetNotificacionesStats,
         startClearMessage
     } = useNotificacionesStore();
+
+    const {
+        user
+    } = useAuthStore();
 
     const {
         user_cbx,
@@ -121,7 +126,7 @@ export const NotificacionesPages = () => {
             titulo: '',
             mensaje: '',
             tipo: 'info',
-            canal: 'sistema',
+            canal: 'app',
             usuario_id: '',
             fecha_programada: '',
             activa: true
@@ -140,7 +145,7 @@ export const NotificacionesPages = () => {
                 .oneOf(['reserva', 'recordatorio', 'promocion', 'sistema', 'empleado'], 'Tipo inválido'),
             canal: Yup.string()
                 .required('El canal es requerido')
-                .oneOf(['sistema', 'email', 'sms', 'web'], 'Canal inválido'),
+                .oneOf(['app', 'email', 'sms', 'push'], 'Canal inválido'),
             usuario_id: Yup.string()
                 .required('El usuario es requerido'),
             fecha_programada: Yup.string()
@@ -155,9 +160,14 @@ export const NotificacionesPages = () => {
     });
 
     useEffect(() => {
-        cargarNotificaciones();
-        cargarEstadisticas();
-    }, [page, rowsPerPage, filtros]);
+        // Solo cargar notificaciones si el usuario tiene permisos
+        if (user?.rol === 'admin' || user?.rol === 'empleado' || user?.rol === 'cliente') {
+            cargarNotificaciones();
+            if (user?.rol === 'admin') {
+                cargarEstadisticas(); // Solo admin puede ver estadísticas completas
+            }
+        }
+    }, [page, rowsPerPage, filtros, user?.rol]);
 
     useEffect(() => {
         if (serverMessage || errorMessage) {
@@ -173,7 +183,35 @@ export const NotificacionesPages = () => {
             limit: rowsPerPage,
             ...filtros
         };
+
+        // Filtrar por rol del usuario
+        if (user?.rol === 'cliente') {
+            params.usuario_id = user.id; // Solo sus propias notificaciones
+        } else if (user?.rol === 'empleado') {
+            params.tipos_permitidos = ['reserva', 'recordatorio', 'sistema']; // Solo ciertos tipos
+        }
+        // Admin puede ver todas las notificaciones
+
         await startLoadingNotificaciones(params);
+    };
+
+    const tienePermiso = (accion) => {
+        if (!user?.rol) return false;
+
+        switch (accion) {
+            case 'crear':
+            case 'editar':
+            case 'eliminar':
+                return user.rol === 'admin'; // Solo admin puede crear/editar/eliminar
+            case 'marcar_leida':
+                return true; // Todos pueden marcar como leída
+            case 'marcar_enviada':
+                return user.rol === 'admin' || user.rol === 'empleado'; // Admin y empleado
+            case 'ver_estadisticas':
+                return user.rol === 'admin'; // Solo admin ve estadísticas
+            default:
+                return false;
+        }
     };
 
     const cargarEstadisticas = async () => {
@@ -287,7 +325,8 @@ export const NotificacionesPages = () => {
         switch (canal) {
             case 'email': return <Email />;
             case 'sms': return <Sms />;
-            case 'web': return <Web />;
+            case 'push': return <Web />;
+            case 'app': return <Web />;
             default: return <Notifications />;
         }
     };
@@ -307,8 +346,6 @@ export const NotificacionesPages = () => {
         startGetUserCbx();
     }, []);
 
-    console.log('estadisticas', estadisticas);
-
     return (
         <Box sx={{ p: 3, maxWidth: 1400, mx: 'auto' }}>
             {/* Header */}
@@ -324,10 +361,14 @@ export const NotificacionesPages = () => {
                         </Badge>
                         <Box>
                             <Typography variant="h4" fontWeight="bold" color="primary">
-                                Gestión de Notificaciones
+                                {user?.rol === 'cliente' ? 'Mis Notificaciones' :
+                                    user?.rol === 'empleado' ? 'Notificaciones del Sistema' :
+                                        'Gestión de Notificaciones'}
                             </Typography>
                             <Typography variant="body1" color="text.secondary">
-                                Administra todas las notificaciones del sistema
+                                {user?.rol === 'cliente' ? 'Revisa tus notificaciones personales' :
+                                    user?.rol === 'empleado' ? 'Notificaciones del sistema y reservas' :
+                                        'Administra todas las notificaciones del sistema'}
                             </Typography>
                         </Box>
                     </Box>
@@ -344,7 +385,9 @@ export const NotificacionesPages = () => {
                             startIcon={<Refresh />}
                             onClick={() => {
                                 cargarNotificaciones();
-                                cargarEstadisticas();
+                                if (tienePermiso('ver_estadisticas')) {
+                                    cargarEstadisticas();
+                                }
                             }}
                         >
                             Actualizar
@@ -354,7 +397,7 @@ export const NotificacionesPages = () => {
             </Paper>
 
             {/* Estadísticas rápidas */}
-            {estadisticas && (
+            {tienePermiso('ver_estadisticas') && estadisticas && (
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                     <Grid item xs={12} sm={6} md={3}>
                         <Card sx={{ borderRadius: 2 }}>
@@ -424,22 +467,24 @@ export const NotificacionesPages = () => {
                                 }}
                             />
                         </Grid>
-                        <Grid item xs={12} md={2}>
-                            <FormControl fullWidth>
-                                <InputLabel>Tipo</InputLabel>
-                                <Select
-                                    value={filtros.tipo}
-                                    label="Tipo"
-                                    onChange={(e) => handleFilterChange('tipo', e.target.value)}
-                                >
-                                    <MenuItem value="">Todos</MenuItem>
-                                    <MenuItem value="info">Info</MenuItem>
-                                    <MenuItem value="success">Éxito</MenuItem>
-                                    <MenuItem value="warning">Advertencia</MenuItem>
-                                    <MenuItem value="error">Error</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
+                        {user?.rol === 'admin' && (
+                            <Grid item xs={12} md={2}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Tipo</InputLabel>
+                                    <Select
+                                        value={filtros.tipo}
+                                        label="Tipo"
+                                        onChange={(e) => handleFilterChange('tipo', e.target.value)}
+                                    >
+                                        <MenuItem value="">Todos</MenuItem>
+                                        <MenuItem value="info">Info</MenuItem>
+                                        <MenuItem value="success">Éxito</MenuItem>
+                                        <MenuItem value="warning">Advertencia</MenuItem>
+                                        <MenuItem value="error">Error</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                        )}
                         <Grid item xs={12} md={2}>
                             <FormControl fullWidth>
                                 <InputLabel>Canal</InputLabel>
@@ -449,13 +494,14 @@ export const NotificacionesPages = () => {
                                     onChange={(e) => handleFilterChange('canal', e.target.value)}
                                 >
                                     <MenuItem value="">Todos</MenuItem>
-                                    <MenuItem value="sistema">Sistema</MenuItem>
+                                    <MenuItem value="app">App</MenuItem>
                                     <MenuItem value="email">Email</MenuItem>
                                     <MenuItem value="sms">SMS</MenuItem>
-                                    <MenuItem value="web">Web</MenuItem>
+                                    <MenuItem value="push">Web</MenuItem>
                                 </Select>
                             </FormControl>
                         </Grid>
+
                         <Grid item xs={12} md={2}>
                             <FormControl fullWidth>
                                 <InputLabel>Estado</InputLabel>
@@ -470,20 +516,24 @@ export const NotificacionesPages = () => {
                                 </Select>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={12} md={2}>
-                            <FormControl fullWidth>
-                                <InputLabel>Enviadas</InputLabel>
-                                <Select
-                                    value={filtros.enviada}
-                                    label="Enviadas"
-                                    onChange={(e) => handleFilterChange('enviada', e.target.value)}
-                                >
-                                    <MenuItem value="">Todos</MenuItem>
-                                    <MenuItem value="true">Enviadas</MenuItem>
-                                    <MenuItem value="false">Pendientes</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
+
+                        {/* Solo admin y empleado pueden filtrar por enviadas */}
+                        {(user?.rol === 'admin' || user?.rol === 'empleado') && (
+                            <Grid item xs={12} md={2}>
+                                <FormControl fullWidth>
+                                    <InputLabel>Enviadas</InputLabel>
+                                    <Select
+                                        value={filtros.enviada}
+                                        label="Enviadas"
+                                        onChange={(e) => handleFilterChange('enviada', e.target.value)}
+                                    >
+                                        <MenuItem value="">Todos</MenuItem>
+                                        <MenuItem value="true">Enviadas</MenuItem>
+                                        <MenuItem value="false">Pendientes</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                        )}
                     </Grid>
                 </Paper>
             )}
@@ -514,7 +564,8 @@ export const NotificacionesPages = () => {
                                 <TableRow>
                                     <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                                         <Typography variant="body1" color="text.secondary">
-                                            No hay notificaciones disponibles
+                                            {user?.rol === 'cliente' ? 'No tienes notificaciones disponibles' :
+                                                'No hay notificaciones disponibles'}
                                         </Typography>
                                     </TableCell>
                                 </TableRow>
@@ -624,18 +675,20 @@ export const NotificacionesPages = () => {
             </Paper>
 
             {/* FAB para crear nueva notificación */}
-            <Fab
-                color="primary"
-                aria-label="add"
-                sx={{
-                    position: 'fixed',
-                    bottom: 16,
-                    right: 16,
-                }}
-                onClick={() => handleOpenModal()}
-            >
-                <Add />
-            </Fab>
+            {tienePermiso('crear') && (
+                <Fab
+                    color="primary"
+                    aria-label="add"
+                    sx={{
+                        position: 'fixed',
+                        bottom: 16,
+                        right: 16,
+                    }}
+                    onClick={() => handleOpenModal()}
+                >
+                    <Add />
+                </Fab>
+            )}
 
             {/* Menu contextual */}
             <Menu
@@ -643,12 +696,14 @@ export const NotificacionesPages = () => {
                 open={Boolean(menuAnchorEl)}
                 onClose={handleMenuClose}
             >
-                <MenuItem onClick={() => handleOpenModal(selectedNotificacion)}>
-                    <ListItemIcon>
-                        <Edit fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Editar</ListItemText>
-                </MenuItem>
+                {tienePermiso('editar') && (
+                    <MenuItem onClick={() => handleOpenModal(selectedNotificacion)}>
+                        <ListItemIcon>
+                            <Edit fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Editar</ListItemText>
+                    </MenuItem>
+                )}
 
                 {selectedNotificacion && !selectedNotificacion.leida && (
                     <MenuItem onClick={() => handleMarcarComoLeida(selectedNotificacion._id)}>
@@ -659,7 +714,7 @@ export const NotificacionesPages = () => {
                     </MenuItem>
                 )}
 
-                {selectedNotificacion && !selectedNotificacion.enviada && (
+                {selectedNotificacion && !selectedNotificacion.enviada && tienePermiso('marcar_enviada') && (
                     <MenuItem onClick={() => handleMarcarComoEnviada(selectedNotificacion._id)}>
                         <ListItemIcon>
                             <Send fontSize="small" />
@@ -668,17 +723,20 @@ export const NotificacionesPages = () => {
                     </MenuItem>
                 )}
 
-                <Divider />
-
-                <MenuItem
-                    onClick={() => handleDeleteConfirm(selectedNotificacion)}
-                    sx={{ color: 'error.main' }}
-                >
-                    <ListItemIcon>
-                        <Delete fontSize="small" color="error" />
-                    </ListItemIcon>
-                    <ListItemText>Eliminar</ListItemText>
-                </MenuItem>
+                {tienePermiso('eliminar') && (
+                    <>
+                        <Divider />
+                        <MenuItem
+                            onClick={() => handleDeleteConfirm(selectedNotificacion)}
+                            sx={{ color: 'error.main' }}
+                        >
+                            <ListItemIcon>
+                                <Delete fontSize="small" color="error" />
+                            </ListItemIcon>
+                            <ListItemText>Eliminar</ListItemText>
+                        </MenuItem>
+                    </>
+                )}
             </Menu>
 
             {/* Modal para crear/editar notificación */}
@@ -752,10 +810,10 @@ export const NotificacionesPages = () => {
                                     onChange={formik.handleChange}
                                     onBlur={formik.handleBlur}
                                 >
-                                    <MenuItem value="sistema">Sistema</MenuItem>
+                                    <MenuItem value="app">App</MenuItem>
                                     <MenuItem value="email">Email</MenuItem>
                                     <MenuItem value="sms">SMS</MenuItem>
-                                    <MenuItem value="web">Web</MenuItem>
+                                    <MenuItem value="push">Push</MenuItem>
                                 </Select>
                                 {formik.touched.canal && formik.errors.canal && (
                                     <FormHelperText>{formik.errors.canal}</FormHelperText>

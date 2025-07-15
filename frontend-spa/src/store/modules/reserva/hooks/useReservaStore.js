@@ -65,11 +65,16 @@ export const useReservaStore = () => {
             dispatch(onSendServerErrorMessageReserva(error.response?.data?.message || 'Error al cargar reserva'));
         }
     };
-
-    const startLoadingReservaStats = async () => {
+    const startLoadingReservaStats = async (filtros = {}) => {
         dispatch(onIsLoadingReserva());
         try {
-            const { data } = await spaApi.get('/reservacion/stats');
+            // Si hay filtros, enviarlos como query parameters
+            let url = '/reservacion/stats';
+            if (filtros.rol && filtros.userId) {
+                url += `?rol=${filtros.rol}&userId=${filtros.userId}`;
+            }
+
+            const { data } = await spaApi.get(url);
             return data;
         } catch (error) {
             console.log(error);

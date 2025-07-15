@@ -48,6 +48,7 @@ import {
 } from '@mui/icons-material';
 import { useReservaStore } from '../../../../../store';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../../../../hooks';
 
 const MESES = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -70,14 +71,13 @@ export const ReservacionCalendario = () => {
         startLoadingReserva,
     } = useReservaStore();
 
+    const {
+        user
+    } = useAuthStore();
+
 
     // Verificar si tenemos datos de reservas
     const datosReservas = reservas || [];
-    console.log('reservas', datosReservas);
-
-    useEffect(() => {
-        cargarReservas();
-    }, [fechaActual, vistaCalendario, filtroEstado]);
 
     const cargarReservas = async () => {
         setCargando(true);
@@ -95,6 +95,16 @@ export const ReservacionCalendario = () => {
                 queryParams.estado = filtroEstado;
             }
 
+            // Agregar filtrado por rol
+            if (user?.rol === 'cliente') {
+                queryParams.usuario_id = user.id;
+            } else if (user?.rol === 'empleado') {
+                // Para empleados, obtener todas las reservas donde él sea el empleado asignado
+                // Necesitarás obtener el empleado_id del usuario actual
+                queryParams.empleado_id = user.empleado_id; // Asumiendo que tienes esta relación
+            }
+            // Si es admin, obtiene todas las reservas (sin filtro adicional)
+
             await startLoadingReserva(queryParams);
         } catch (error) {
             console.error('Error cargando reservas:', error);
@@ -102,6 +112,13 @@ export const ReservacionCalendario = () => {
             setCargando(false);
         }
     };
+
+    // También necesitarás modificar el useEffect para recargar cuando cambie el usuario
+    useEffect(() => {
+        if (user) { // Solo cargar si hay usuario autenticado
+            cargarReservas();
+        }
+    }, [fechaActual, vistaCalendario, filtroEstado, user]);
 
     const obtenerFechaInicio = () => {
         const fecha = new Date(fechaActual);
