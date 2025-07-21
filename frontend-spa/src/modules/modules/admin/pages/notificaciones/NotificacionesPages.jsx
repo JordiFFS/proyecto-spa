@@ -35,7 +35,13 @@ import {
     Divider,
     Badge,
     Fab,
-    Snackbar
+    Snackbar,
+    Switch,
+    FormControlLabel,
+    Checkbox,
+    List,
+    ListItem,
+    Collapse
 } from '@mui/material';
 import {
     Notifications,
@@ -53,11 +59,11 @@ import {
     Sms,
     Web,
     Person,
-    DateRange,
     CheckCircle,
     Schedule,
     Warning,
-    Info
+    Info,
+    ExpandLess, ExpandMore, Email as EmailIcon
 } from '@mui/icons-material';
 import { useNotificacionesStore } from '../../../../../store/modules/notificacion/hooks';
 import { useGetComboxBox } from '../../../../components';
@@ -65,21 +71,35 @@ import * as Yup from 'yup';
 import { useFormik } from 'formik';
 import { useAuthStore } from '../../../../../hooks';
 
+import { useMQTTNotifications } from '../../../../../hooks';
+
 export const NotificacionesPages = () => {
+
+
+    const [showEmailOptions, setShowEmailOptions] = useState(false);
+    const [showUsuariosList, setShowUsuariosList] = useState(false);
+
     const {
         isLoading,
         notifiacions,
         pagination,
         serverMessage,
+        estadisticas,
         errorMessage,
         startLoadingNotificaciones,
         startSavingNotificacion,
+        startSavingNotificacionWithEmail,
+        startEnvioMasivoNotificaciones,
         startDeletingNotificacion,
         startMarcarComoLeida,
         startMarcarComoEnviada,
         startGetNotificacionesStats,
         startClearMessage
     } = useNotificacionesStore();
+
+    console.log('estadisticas', estadisticas);
+
+    useMQTTNotifications();
 
     const {
         user
@@ -107,20 +127,14 @@ export const NotificacionesPages = () => {
     const [notificacionToDelete, setNotificacionToDelete] = useState(null);
     const [menuAnchorEl, setMenuAnchorEl] = useState(null);
     const [selectedNotificacion, setSelectedNotificacion] = useState(null);
-    const [estadisticas, setEstadisticas] = useState(null);
     const [showFilters, setShowFilters] = useState(false);
 
-    // Formulario para crear/editar notificación
-    /* const [formData, setFormData] = useState({
-        titulo: '',
-        mensaje: '',
-        tipo: 'info',
-        canal: 'sistema',
-        usuario_id: '',
-        fecha_programada: '',
-        activa: true
-    }); */
+    // Estados para el envío por correo
+    const [enviarPorEmail, setEnviarPorEmail] = useState(false);
+    const [envioMasivo, setEnvioMasivo] = useState(false);
+    const [usuariosSeleccionados, setUsuariosSeleccionados] = useState([]);
 
+    // Formulario para crear/editar notificación
     const formik = useFormik({
         initialValues: {
             titulo: '',
@@ -146,28 +160,78 @@ export const NotificacionesPages = () => {
             canal: Yup.string()
                 .required('El canal es requerido')
                 .oneOf(['app', 'email', 'sms', 'push'], 'Canal inválido'),
-            usuario_id: Yup.string()
-                .required('El usuario es requerido'),
-            fecha_programada: Yup.string()
-                .nullable()
+            usuario_id: Yup.string().when(['envioMasivo'], {
+                is: (envioMasivo) => !envioMasivo,
+                then: () => Yup.string().required('El usuario es requerido'),
+                otherwise: () => Yup.string()
+            }),
+            fecha_programada: Yup.string().nullable()
         }),
         onSubmit: async (values) => {
-            await startSavingNotificacion(values);
-            handleCloseModal();
-            cargarNotificaciones();
-            cargarEstadisticas();
+            try {
+                if (envioMasivo && usuariosSeleccionados.length > 0) {
+                    // Envío masivo
+                    const destinatarios = usuariosSeleccionados.map(userId => {
+                        const usuario = user_cbx.find(u => u.value === userId);
+                        return {
+                            usuario_id: userId,
+                            email: usuario?.email || ''
+                        };
+                    });
+
+                    await startEnvioMasivoNotificaciones(values, destinatarios);
+                } else if (enviarPorEmail) {
+                    // Envío individual con email
+                    const usuario = user_cbx.find(u => u.value === values.usuario_id);
+                    const emailDestinatario = usuario?.email || user?.email;
+
+                    await startSavingNotificacionWithEmail(values, true, emailDestinatario);
+                } else {
+                    // Envío normal sin email
+                    await startSavingNotificacion(values);
+                }
+
+                handleCloseModal();
+                cargarNotificaciones();
+                cargarEstadisticas();
+            } catch (error) {
+                console.error('Error al enviar notificación:', error);
+            }
         }
     });
 
     useEffect(() => {
-        // Solo cargar notificaciones si el usuario tiene permisos
         if (user?.rol === 'admin' || user?.rol === 'empleado' || user?.rol === 'cliente') {
             cargarNotificaciones();
             if (user?.rol === 'admin') {
-                cargarEstadisticas(); // Solo admin puede ver estadísticas completas
+                startGetNotificacionesStats();
             }
         }
-    }, [page, rowsPerPage, filtros, user?.rol]);
+    }, [page, rowsPerPage, user?.rol]);
+
+    useEffect(() => {
+        if (user?.rol === 'admin' || user?.rol === 'empleado') {
+            cargarNotificaciones();
+        }
+    }, [filtros]);
+
+    useEffect(() => {
+        if (user?.rol === 'cliente') {
+            // Para clientes, solo aplicar filtros que no oculten notificaciones importantes
+            const filtrosCliente = {
+                page: page + 1,
+                limit: rowsPerPage,
+                usuario_id: user.id,
+                // Solo aplicar filtros de búsqueda, tipo y canal
+                ...(filtros.search && { search: filtros.search }),
+                ...(filtros.tipo && { tipo: filtros.tipo }),
+                ...(filtros.canal && { canal: filtros.canal }),
+                // Para "leida", solo filtrar si quiere ver "no leídas", nunca ocultar las leídas
+                ...(filtros.leida === 'false' && { leida: 'false' })
+            };
+            startLoadingNotificaciones(filtrosCliente);
+        }
+    }, [filtros, page, rowsPerPage, user]);
 
     useEffect(() => {
         if (serverMessage || errorMessage) {
@@ -187,6 +251,10 @@ export const NotificacionesPages = () => {
         // Filtrar por rol del usuario
         if (user?.rol === 'cliente') {
             params.usuario_id = user.id; // Solo sus propias notificaciones
+            // IMPORTANTE: Para clientes, NO aplicar filtros que oculten notificaciones
+            // El cliente debe poder ver TODAS sus notificaciones (leídas y no leídas)
+            delete params.leida; // Remover filtro de leída para clientes
+            delete params.enviada; // Remover filtro de enviada para clientes
         } else if (user?.rol === 'empleado') {
             params.tipos_permitidos = ['reserva', 'recordatorio', 'sistema']; // Solo ciertos tipos
         }
@@ -209,14 +277,15 @@ export const NotificacionesPages = () => {
                 return user.rol === 'admin' || user.rol === 'empleado'; // Admin y empleado
             case 'ver_estadisticas':
                 return user.rol === 'admin'; // Solo admin ve estadísticas
+            case 'enviar_email':
+                return user.rol === 'admin' || user.rol === 'empleado'; // Admin y empleado pueden enviar emails
             default:
                 return false;
         }
     };
 
     const cargarEstadisticas = async () => {
-        const stats = await startGetNotificacionesStats();
-        setEstadisticas(stats);
+        await startGetNotificacionesStats();
     };
 
     const handleChangePage = (event, newPage) => {
@@ -251,12 +320,45 @@ export const NotificacionesPages = () => {
         } else {
             formik.resetForm();
         }
+
+        // Resetear TODOS los estados de envío
+        setEnviarPorEmail(false);
+        setEnvioMasivo(false);
+        setUsuariosSeleccionados([]);
+        setShowEmailOptions(false);
+        setShowUsuariosList(false);
+
         setModalOpen(true);
+    };
+
+    const handleEnviarPorEmailChange = (checked) => {
+        setEnviarPorEmail(checked);
+        if (!checked) {
+            setEnvioMasivo(false);
+            setUsuariosSeleccionados([]);
+            setShowUsuariosList(false);
+        }
+        setShowEmailOptions(checked);
+    };
+
+    const handleEnvioMasivoChange = (checked) => {
+        setEnvioMasivo(checked);
+        if (checked) {
+            // Si activa envío masivo, limpiar usuario individual
+            formik.setFieldValue('usuario_id', '');
+            setShowUsuariosList(true);
+        } else {
+            setUsuariosSeleccionados([]);
+            setShowUsuariosList(false);
+        }
     };
 
     const handleCloseModal = () => {
         setModalOpen(false);
         formik.resetForm();
+        setEnviarPorEmail(false);
+        setEnvioMasivo(false);
+        setUsuariosSeleccionados([]);
     };
 
     const handleSaveNotificacion = async () => {
@@ -290,7 +392,16 @@ export const NotificacionesPages = () => {
 
     const handleMarcarComoLeida = async (notificacionId) => {
         await startMarcarComoLeida(notificacionId);
-        cargarNotificaciones();
+
+        // Solo recargar si NO es cliente, o si es cliente pero quiere ver el cambio inmediato
+        // Para clientes, mejor actualizar el estado local
+        if (user?.rol !== 'cliente') {
+            cargarNotificaciones();
+        } else {
+            // Para clientes, actualizar el estado local sin recargar
+            // La notificación ya se actualizó en el store por startMarcarComoLeida
+        }
+
         handleMenuClose();
     };
 
@@ -298,6 +409,24 @@ export const NotificacionesPages = () => {
         await startMarcarComoEnviada(notificacionId);
         cargarNotificaciones();
         handleMenuClose();
+    };
+
+    const handleUsuarioSeleccionChange = (userId, checked) => {
+        setUsuariosSeleccionados(prev => {
+            if (checked) {
+                return [...prev, userId];
+            } else {
+                return prev.filter(id => id !== userId);
+            }
+        });
+    };
+
+    const handleSelectAllUsuarios = (checked) => {
+        if (checked) {
+            setUsuariosSeleccionados(user_cbx.map(usuario => usuario.value));
+        } else {
+            setUsuariosSeleccionados([]);
+        }
     };
 
     const getTipoColor = (tipo) => {
@@ -353,7 +482,7 @@ export const NotificacionesPages = () => {
                 <Box display="flex" justifyContent="space-between" alignItems="center">
                     <Box display="flex" alignItems="center" gap={2}>
                         <Badge
-                            badgeContent={estadisticas?.estadisticas?.no_leidas || 0}
+                            badgeContent={estadisticas?.pendientes || 0}
                             color="error"
                             max={99}
                         >
@@ -403,7 +532,7 @@ export const NotificacionesPages = () => {
                         <Card sx={{ borderRadius: 2 }}>
                             <CardContent sx={{ textAlign: 'center' }}>
                                 <Typography variant="h4" color="primary" fontWeight="bold">
-                                    {estadisticas?.estadisticas?.total}
+                                    {estadisticas.total}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
                                     Total Notificaciones
@@ -415,7 +544,7 @@ export const NotificacionesPages = () => {
                         <Card sx={{ borderRadius: 2 }}>
                             <CardContent sx={{ textAlign: 'center' }}>
                                 <Typography variant="h4" color="warning.main" fontWeight="bold">
-                                    {estadisticas?.estadisticas?.no_leidas}
+                                    {estadisticas.no_leidas}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
                                     No Leídas
@@ -427,7 +556,7 @@ export const NotificacionesPages = () => {
                         <Card sx={{ borderRadius: 2 }}>
                             <CardContent sx={{ textAlign: 'center' }}>
                                 <Typography variant="h4" color="success.main" fontWeight="bold">
-                                    {estadisticas?.estadisticas?.enviadas}
+                                    {estadisticas.enviadas}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
                                     Enviadas
@@ -439,7 +568,7 @@ export const NotificacionesPages = () => {
                         <Card sx={{ borderRadius: 2 }}>
                             <CardContent sx={{ textAlign: 'center' }}>
                                 <Typography variant="h4" color="info.main" fontWeight="bold">
-                                    {estadisticas?.estadisticas?.pendientes}
+                                    {estadisticas.pendientes}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
                                     Pendientes
@@ -508,11 +637,26 @@ export const NotificacionesPages = () => {
                                 <Select
                                     value={filtros.leida}
                                     label="Estado"
-                                    onChange={(e) => handleFilterChange('leida', e.target.value)}
+                                    onChange={(e) => {
+                                        // Para clientes, no aplicar filtro que oculte notificaciones
+                                        if (user?.rol === 'cliente') {
+                                            // Solo permitir ver "todas" o filtrar por "no leídas" 
+                                            // pero nunca ocultar las leídas completamente
+                                            if (e.target.value === 'false') {
+                                                handleFilterChange('leida', e.target.value);
+                                            } else {
+                                                handleFilterChange('leida', ''); // Mostrar todas
+                                            }
+                                        } else {
+                                            handleFilterChange('leida', e.target.value);
+                                        }
+                                    }}
                                 >
-                                    <MenuItem value="">Todos</MenuItem>
-                                    <MenuItem value="true">Leídas</MenuItem>
+                                    <MenuItem value="">Todas</MenuItem>
                                     <MenuItem value="false">No Leídas</MenuItem>
+                                    {user?.rol !== 'cliente' && (
+                                        <MenuItem value="true">Solo Leídas</MenuItem>
+                                    )}
                                 </Select>
                             </FormControl>
                         </Grid>
@@ -764,6 +908,7 @@ export const NotificacionesPages = () => {
                                 required
                             />
                         </Grid>
+
                         <Grid item xs={12}>
                             <TextField
                                 fullWidth
@@ -779,6 +924,7 @@ export const NotificacionesPages = () => {
                                 required
                             />
                         </Grid>
+
                         <Grid item xs={12} md={6}>
                             <FormControl fullWidth error={formik.touched.tipo && Boolean(formik.errors.tipo)}>
                                 <InputLabel>Tipo</InputLabel>
@@ -800,6 +946,7 @@ export const NotificacionesPages = () => {
                                 )}
                             </FormControl>
                         </Grid>
+
                         <Grid item xs={12} md={6}>
                             <FormControl fullWidth error={formik.touched.canal && Boolean(formik.errors.canal)}>
                                 <InputLabel>Canal</InputLabel>
@@ -820,62 +967,150 @@ export const NotificacionesPages = () => {
                                 )}
                             </FormControl>
                         </Grid>
+
+                        {/* NUEVA SECCIÓN: Opciones de Email */}
                         <Grid item xs={12}>
-                            <FormControl
-                                fullWidth
-                                error={formik.touched.usuario_id && Boolean(formik.errors.usuario_id)}
-                                disabled={isLoading}
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        minHeight: '56px',
-                                        fontSize: '1.1rem'
-                                    },
-                                    '& .MuiInputLabel-root': {
-                                        fontSize: '1.1rem'
-                                    }
-                                }}
-                            >
-                                <InputLabel
-                                    _id="usuario-label"
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={enviarPorEmail}
+                                        onChange={(e) => handleEnviarPorEmailChange(e.target.checked)}
+                                        color="primary"
+                                    />
+                                }
+                                label={
+                                    <Box display="flex" alignItems="center" gap={1}>
+                                        <EmailIcon />
+                                        <Typography>Enviar por Email</Typography>
+                                    </Box>
+                                }
+                            />
+                        </Grid>
+
+                        {/* Opciones de Email expandibles */}
+                        <Grid item xs={12}>
+                            <Collapse in={showEmailOptions}>
+                                <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
+                                    <FormControlLabel
+                                        control={
+                                            <Checkbox
+                                                checked={envioMasivo}
+                                                onChange={(e) => handleEnvioMasivoChange(e.target.checked)}
+                                                color="primary"
+                                            />
+                                        }
+                                        label="Envío masivo a múltiples usuarios"
+                                    />
+
+                                    {envioMasivo && (
+                                        <Box sx={{ mt: 2 }}>
+                                            <Box display="flex" justifyContent="space-between" alignItems="center">
+                                                <Typography variant="h6">
+                                                    Seleccionar Usuarios ({usuariosSeleccionados.length} seleccionados)
+                                                </Typography>
+                                                <Box>
+                                                    <Button
+                                                        size="small"
+                                                        onClick={() => handleSelectAllUsuarios(true)}
+                                                        sx={{ mr: 1 }}
+                                                    >
+                                                        Seleccionar Todos
+                                                    </Button>
+                                                    <Button
+                                                        size="small"
+                                                        onClick={() => handleSelectAllUsuarios(false)}
+                                                    >
+                                                        Deseleccionar Todos
+                                                    </Button>
+                                                </Box>
+                                            </Box>
+
+                                            <List dense sx={{ maxHeight: 200, overflow: 'auto', mt: 1 }}>
+                                                {Array.isArray(user_cbx) && user_cbx.map((usuario) => (
+                                                    <ListItem key={usuario.value} dense>
+                                                        <Checkbox
+                                                            checked={usuariosSeleccionados.includes(usuario.value)}
+                                                            onChange={(e) => handleUsuarioSeleccionChange(usuario.value, e.target.checked)}
+                                                            size="small"
+                                                        />
+                                                        <ListItemText
+                                                            primary={usuario.label}
+                                                            secondary={usuario.email || 'Sin email'}
+                                                        />
+                                                    </ListItem>
+                                                ))}
+                                            </List>
+                                        </Box>
+                                    )}
+                                </Paper>
+                            </Collapse>
+                        </Grid>
+
+                        {/* Usuario individual (solo si NO es envío masivo) */}
+                        {!envioMasivo && (
+                            <Grid item xs={12}>
+                                <FormControl
+                                    fullWidth
+                                    error={formik.touched.usuario_id && Boolean(formik.errors.usuario_id)}
+                                    disabled={isLoading}
                                     sx={{
-                                        fontSize: '1.1rem',
-                                        fontWeight: 500
-                                    }}
-                                >
-                                    Usuario *
-                                </InputLabel>
-                                <Select
-                                    labelId="usuario-label"
-                                    _id="usuario_id"
-                                    name="usuario_id"
-                                    value={formik.values.usuario_id}
-                                    label="Usuario *"
-                                    onChange={formik.handleChange}
-                                    onBlur={formik.handleBlur}
-                                    MenuProps={{
-                                        PaperProps: {
-                                            sx: {
-                                                maxHeight: 300,
-                                                '& .MuiMenuItem-root': {
-                                                    fontSize: '1rem',
-                                                    minHeight: '48px',
-                                                    padding: '12px 16px'
-                                                }
-                                            }
+                                        '& .MuiOutlinedInput-root': {
+                                            minHeight: '56px',
+                                            fontSize: '1.1rem'
+                                        },
+                                        '& .MuiInputLabel-root': {
+                                            fontSize: '1.1rem'
                                         }
                                     }}
                                 >
-                                    {Array.isArray(user_cbx) && user_cbx.map((usuario) => (
-                                        <MenuItem key={usuario.value} value={usuario.value}>
-                                            {usuario.label}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                                <FormHelperText sx={{ fontSize: '0.9rem', mt: 1 }}>
-                                    {formik.touched.usuario_id && formik.errors.usuario_id}
-                                </FormHelperText>
-                            </FormControl>
-                        </Grid>
+                                    <InputLabel
+                                        id="usuario-label"
+                                        sx={{
+                                            fontSize: '1.1rem',
+                                            fontWeight: 500
+                                        }}
+                                    >
+                                        Usuario *
+                                    </InputLabel>
+                                    <Select
+                                        labelId="usuario-label"
+                                        id="usuario_id"
+                                        name="usuario_id"
+                                        value={formik.values.usuario_id}
+                                        label="Usuario *"
+                                        onChange={formik.handleChange}
+                                        onBlur={formik.handleBlur}
+                                        MenuProps={{
+                                            PaperProps: {
+                                                sx: {
+                                                    maxHeight: 300,
+                                                    '& .MuiMenuItem-root': {
+                                                        fontSize: '1rem',
+                                                        minHeight: '48px',
+                                                        padding: '12px 16px'
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        {Array.isArray(user_cbx) && user_cbx.map((usuario) => (
+                                            <MenuItem key={usuario.value} value={usuario.value}>
+                                                {usuario.label}
+                                                {usuario.email && (
+                                                    <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                                        ({usuario.email})
+                                                    </Typography>
+                                                )}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                    <FormHelperText sx={{ fontSize: '0.9rem', mt: 1 }}>
+                                        {formik.touched.usuario_id && formik.errors.usuario_id}
+                                    </FormHelperText>
+                                </FormControl>
+                            </Grid>
+                        )}
+
                         <Grid item xs={12} md={6}>
                             <TextField
                                 fullWidth
@@ -899,9 +1134,17 @@ export const NotificacionesPages = () => {
                     <Button
                         onClick={handleSaveNotificacion}
                         variant="contained"
-                        disabled={!formik.isValid || formik.isSubmitting}
+                        disabled={
+                            !formik.isValid ||
+                            formik.isSubmitting ||
+                            (envioMasivo && usuariosSeleccionados.length === 0) ||
+                            (enviarPorEmail && !envioMasivo && !formik.values.usuario_id)
+                        }
+                        startIcon={enviarPorEmail ? <EmailIcon /> : null}
                     >
-                        {formik.values._id ? 'Actualizar' : 'Crear'}
+                        {envioMasivo ? `Enviar a ${usuariosSeleccionados.length} usuarios` :
+                            enviarPorEmail ? 'Crear y Enviar Email' :
+                                formik.values._id ? 'Actualizar' : 'Crear'}
                     </Button>
                 </DialogActions>
             </Dialog>

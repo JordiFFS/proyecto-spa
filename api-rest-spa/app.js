@@ -13,6 +13,10 @@ const allowedOrigins = [
     'http://localhost:3001',
     'http://192.168.0.5:3000',
     'http://192.168.0.5:3001',
+    'http://192.168.175.103:3000',
+    'http://192.168.175.103:3001',
+    'http://0.0.0.0:3001',
+    'http://0.0.0.0:3001',
 ];
 
 // CORS configurado para tu red local
@@ -95,7 +99,8 @@ app.get('/api/test', (req, res) => {
         urls: {
             local: `http://localhost:${port}`,
             network: `http://${localIP}:${port}`,
-            yourIP: `http://192.168.0.5:${port}`
+            yourIP: `http://192.168.0.5:${port}`,
+            localIP: `http://192.168.175.103:${port}`
         }
     });
 });

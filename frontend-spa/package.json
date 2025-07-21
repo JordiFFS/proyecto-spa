@@ -19,6 +19,7 @@
     "axios": "^1.10.0",
     "crypto-js": "^4.2.0",
     "formik": "^2.4.6",
+    "mqtt": "^5.13.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-redux": "^9.2.0",

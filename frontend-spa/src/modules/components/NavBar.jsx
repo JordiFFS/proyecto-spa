@@ -8,7 +8,8 @@ import {
     MenuItem,
     IconButton,
     Divider,
-    Chip
+    Chip,
+    Badge
 } from '@mui/material';
 import {
     Dashboard,
@@ -30,6 +31,8 @@ import {
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../hooks';
+import { useNotificacionesStore } from '../../store';
+import { useEffect } from 'react';
 
 export const NavBar = () => {
     const { user, startlogout } = useAuthStore();
@@ -38,6 +41,12 @@ export const NavBar = () => {
     // Estados separados para cada menú
     const [menuStates, setMenuStates] = useState({});
     const [userMenuAnchor, setUserMenuAnchor] = useState(null);
+
+    const {
+        estadisticas,
+    } = useNotificacionesStore();
+
+    console.log('estadisticas navbar', estadisticas);
 
     const handleMenuOpen = (menuKey, event) => {
         setMenuStates(prev => ({
@@ -205,6 +214,15 @@ export const NavBar = () => {
         }
     };
 
+    const getNotificationsPath = () => {
+        switch (user.rol) {
+            case 'admin': return '/admin/notificaciones';
+            case 'empleado': return '/empleado/notificaciones';
+            case 'cliente': return '/client/notificaciones';
+            default: return '/notificaciones';
+        }
+    };
+
     const modules = getModulesByRole();
 
     return (
@@ -330,6 +348,41 @@ export const NavBar = () => {
                     ))}
                 </Box>
 
+                {/* Botón de Notificaciones */}
+                <IconButton
+                    color="inherit"
+                    onClick={() => navigate(getNotificationsPath())}
+                    sx={{
+                        ml: 1,
+                        borderRadius: 2,
+                        '&:hover': {
+                            bgcolor: 'rgba(255,255,255,0.1)',
+                            backdropFilter: 'blur(10px)'
+                        }
+                    }}
+                >
+                    <Badge
+                        badgeContent={estadisticas?.pendientes || 0}
+                        color="error"
+                        sx={{
+                            '& .MuiBadge-badge': {
+                                bgcolor: '#ff4757',
+                                color: 'white',
+                                fontWeight: 'bold',
+                                fontSize: '0.75rem',
+                                minWidth: '20px',
+                                height: '20px',
+                                borderRadius: '10px',
+                                border: '2px solid white',
+                                boxShadow: '0 2px 8px rgba(255, 71, 87, 0.3)'
+                            }
+                        }}
+                        invisible={!estadisticas?.pendientes || estadisticas.pendientes === 0}
+                    >
+                        <Notifications sx={{ fontSize: 28 }} />
+                    </Badge>
+                </IconButton>
+
                 {/* Menú de Usuario */}
                 <Box>
                     <IconButton
@@ -374,7 +427,7 @@ export const NavBar = () => {
                                 {user.email}
                             </Typography>
                         </Box>
-                       {/*  <MenuItem
+                        {/*  <MenuItem
                             onClick={() => {
                                 handleUserMenuClose();
                                 navigate('/perfil');

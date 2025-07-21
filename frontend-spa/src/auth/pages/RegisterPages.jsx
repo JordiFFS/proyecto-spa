@@ -423,5 +423,5 @@ const validationSchema = Yup.object().shape({
             /^[\d\s\+\-\(\)]*$/,
             'El teléfono solo puede contener números, espacios, +, -, ( y )'
         )
-        .nullable(),
+        .required('El teléfono es obligatorio'),
 });

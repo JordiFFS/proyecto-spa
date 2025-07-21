@@ -1,18 +1,20 @@
 import React, { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { 
-    onAddNewNotifiacion, 
-    onClearMessageNotifiacion, 
-    onCloseModalNotifiacion, 
-    onConfirmDeleteNotifiacion, 
-    onIsLoadingNotifiacion, 
-    onLoadNotifiacion, 
+import {
+    onAddNewNotifiacion,
+    onClearMessageNotifiacion,
+    onCloseModalNotifiacion,
+    onConfirmDeleteNotifiacion,
+    onIsLoadingNotifiacion,
+    onLoadEstadisticas,
+    onLoadNotifiacion,
     onReactivateNotifiacion,
-    onSendErrorMessageNotifiacion, 
-    onSendServerErrorMessageNotifiacion, 
-    onSetActiveNotifiacion, 
-    onUpdateNotifiacion 
+    onSendErrorMessageNotifiacion,
+    onSendServerErrorMessageNotifiacion,
+    onSetActiveNotifiacion,
+    onUpdateNotifiacion,
+    onUpdateNotificacionMQTT
 } from '../slices';
 import { spaApi } from '../../../../api';
 
@@ -29,6 +31,7 @@ export const useNotificacionesStore = () => {
         errorMessage,
         confirm,
         pagination,
+        estadisticas
     } = useSelector(state => state.notifiacion);
 
     const [errorAtributes, setErrorAtributes] = useState([]);
@@ -117,7 +120,7 @@ export const useNotificacionesStore = () => {
             // Crear nueva notificación
             const { data } = await spaApi.post('/notificacion', notificacionData);
             if (data.success) {
-                dispatch(onAddNewNotifiacion(data.data));
+                dispatch(onUpdateNotificacionMQTT(data.data));
                 navigate(-1);
             }
         } catch (error) {
@@ -134,6 +137,124 @@ export const useNotificacionesStore = () => {
                     dispatch(onSendErrorMessageNotifiacion(errorData.message || 'Error de validación'));
                 }
             }
+        }
+    };
+
+    // NUEVO: Crear notificación con email
+    const startSavingNotificacionWithEmail = async (notificacionData, enviarEmail = false, emailDestinatario = null) => {
+        dispatch(onIsLoadingNotifiacion());
+        try {
+            const payload = {
+                ...notificacionData,
+                enviar_email: enviarEmail,
+                email_destinatario: emailDestinatario
+            };
+
+            const { data } = await spaApi.post('/notificacion/with-email', payload);
+
+            if (data.data) {
+                dispatch(onUpdateNotificacionMQTT(data.data));
+
+                // Mostrar mensaje de éxito con información del email si aplica
+                if (enviarEmail && data.email_result) {
+                    if (data.email_result.success !== false) {
+                        dispatch(onSendServerErrorMessageNotifiacion('Notificación creada y email enviado correctamente'));
+                    } else {
+                        dispatch(onSendServerErrorMessageNotifiacion('Notificación creada, pero falló el envío del email'));
+                    }
+                } else {
+                    dispatch(onSendServerErrorMessageNotifiacion('Notificación creada correctamente'));
+                }
+
+                navigate(-1);
+                return data;
+            }
+        } catch (error) {
+            console.log(error);
+            if (error.response?.status === 400) {
+                const errorData = error.response.data;
+                if (typeof errorData === 'object' && !errorData.message) {
+                    const claves = Object.keys(errorData);
+                    setErrorAtributes(errorData);
+                    const firstValue = errorData[claves[0]];
+                    dispatch(onSendErrorMessageNotifiacion(`${firstValue[0]}`));
+                } else {
+                    dispatch(onSendErrorMessageNotifiacion(errorData.message || 'Error de validación'));
+                }
+            } else {
+                dispatch(onSendServerErrorMessageNotifiacion(error.response?.data?.message || 'Error al crear notificación'));
+            }
+        }
+    };
+
+    // NUEVO: Envío masivo de notificaciones
+    const startEnvioMasivoNotificaciones = async (notificacionData, destinatarios) => {
+        dispatch(onIsLoadingNotifiacion());
+        try {
+            const payload = {
+                notificacion: notificacionData,
+                destinatarios: destinatarios
+            };
+
+            const { data } = await spaApi.post('/notificacion/envio-masivo', payload);
+
+            if (data.notificacion) {
+                dispatch(onUpdateNotificacionMQTT(data.notificacion));
+
+                // Mostrar resumen del envío
+                const { resumen } = data;
+                const mensaje = `Envío masivo completado: ${resumen.exitosos} exitosos de ${resumen.total} emails`;
+                dispatch(onSendServerErrorMessageNotifiacion(mensaje));
+
+                return data;
+            }
+        } catch (error) {
+            console.log(error);
+            if (error.response?.status === 400) {
+                const errorData = error.response.data;
+                dispatch(onSendErrorMessageNotifiacion(errorData.error || 'Error en envío masivo'));
+
+                // Si hay emails inválidos, mostrar cuáles son
+                if (errorData.emails_invalidos) {
+                    console.warn('Emails inválidos:', errorData.emails_invalidos);
+                }
+            } else {
+                dispatch(onSendServerErrorMessageNotifiacion(error.response?.data?.message || 'Error en envío masivo'));
+            }
+        }
+    };
+
+    // NUEVO: Programar notificación
+    const startProgramarNotificacion = async (notificacionData, emailDestinatario, fechaEnvio) => {
+        dispatch(onIsLoadingNotifiacion());
+        try {
+            const payload = {
+                notificacion: notificacionData,
+                email_destinatario: emailDestinatario,
+                fecha_envio: fechaEnvio
+            };
+
+            const { data } = await spaApi.post('/notificacion/programar', payload);
+
+            dispatch(onSendServerErrorMessageNotifiacion('Notificación programada exitosamente'));
+            return data;
+
+        } catch (error) {
+            console.log(error);
+            dispatch(onSendServerErrorMessageNotifiacion(error.response?.data?.error || 'Error al programar notificación'));
+        }
+    };
+
+    // NUEVO: Procesar notificaciones programadas
+    const startProcesarNotificacionesProgramadas = async () => {
+        dispatch(onIsLoadingNotifiacion());
+        try {
+            const { data } = await spaApi.post('/notificacion/procesar-programadas');
+            dispatch(onSendServerErrorMessageNotifiacion('Notificaciones programadas procesadas correctamente'));
+            return data;
+        } catch (error) {
+            console.log(error);
+            dispatch(onSendServerErrorMessageNotifiacion(error.response?.data?.error || 'Error al procesar notificaciones programadas'));
         }
     };
 
@@ -190,10 +311,11 @@ export const useNotificacionesStore = () => {
     const startGetNotificacionesStats = async (usuarioId = null) => {
         dispatch(onIsLoadingNotifiacion());
         try {
-            const endpoint = usuarioId 
-                ? `/notificacion/stats?usuario_id=${usuarioId}` 
+            const endpoint = usuarioId
+                ? `/notificacion/stats?usuario_id=${usuarioId}`
                 : '/notificacion/stats';
             const { data } = await spaApi.get(endpoint);
+            dispatch(onLoadEstadisticas(data));
             return data;
         } catch (error) {
             console.log(error);
@@ -237,8 +359,9 @@ export const useNotificacionesStore = () => {
         confirm,
         pagination,
         errorAtributes,
-        
-        // Actions
+        estadisticas,
+
+        // Actions existentes
         startLoadingNotificaciones,
         startLoadingNotificacionById,
         startLoadingNotificacionesNoLeidas,
@@ -254,5 +377,11 @@ export const useNotificacionesStore = () => {
         startConfirmDelete,
         startCloseNotificacion,
         startReactivateNotificacion,
+
+        // NUEVOS MÉTODOS
+        startSavingNotificacionWithEmail,
+        startEnvioMasivoNotificaciones,
+        startProgramarNotificacion,
+        startProcesarNotificacionesProgramadas,
     }
 }
