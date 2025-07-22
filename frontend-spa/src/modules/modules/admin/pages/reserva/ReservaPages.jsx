@@ -53,9 +53,6 @@ export const ReservaPages = () => {
         user
     } = useAuthStore();
 
-    console.log('reservas', reservas);
-    console.log('user', user);
-
     useEffect(() => {
         // Agregar filtro automático según el rol del usuario
         const roleFilters = {};

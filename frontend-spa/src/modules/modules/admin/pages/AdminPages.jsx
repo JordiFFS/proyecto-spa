@@ -42,10 +42,19 @@ import {
     Edit
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useReservaStore, useUserStore } from '../../../../store';
+import { useAuthStore } from '../../../../hooks';
 
 export const AdminPages = () => {
     const navigate = useNavigate();
-    
+
+    const colores = {
+        pendientes: '#ff9800',    // Naranja
+        confirmadas: '#2196f3',   // Azul
+        completadas: '#4caf50',   // Verde
+        canceladas: '#f44336'     // Rojo
+    };
+
     // Estados para métricas (en un proyecto real vendrían de APIs)
     const [metrics, setMetrics] = useState({
         totalUsuarios: 145,
@@ -65,12 +74,74 @@ export const AdminPages = () => {
         { id: 4, tipo: 'empleado', descripcion: 'Ana Pérez cambió su disponibilidad', tiempo: '2 h', icono: <WorkOutline />, color: '#9c27b0' }
     ]);
 
-    const [reservasEstado] = useState([
-        { estado: 'Pendientes', cantidad: 8, color: '#ff9800', porcentaje: 35 },
-        { estado: 'Confirmadas', cantidad: 12, color: '#2196f3', porcentaje: 52 },
-        { estado: 'Completadas', cantidad: 87, color: '#4caf50', porcentaje: 78 },
-        { estado: 'Canceladas', cantidad: 3, color: '#f44336', porcentaje: 13 }
-    ]);
+    const [estadisticas, setEstadisticas] = useState(null);
+    const [cargando, setCargando] = useState(false);
+    const [error, setError] = useState(null);
+
+    const {
+        startLoadingReservaStats,
+    } = useReservaStore();
+
+    const {
+        user
+    } = useAuthStore();
+
+    const {
+        users
+    } = useUserStore();
+
+
+    useEffect(() => {
+        cargarEstadisticas();
+    }, []);
+
+    const calcularPorcentaje = (cantidad, total) => {
+        return total > 0 ? (cantidad / total) * 100 : 0;
+    };
+
+    const cargarEstadisticas = async () => {
+        setCargando(true);
+        setError(null);
+        try {
+            // Enviar el rol y ID del usuario para filtrar las estadísticas
+            if (user.rol === "cliente") {
+                const filtros = {
+                    rol: user.rol,
+                    userId: user.id
+                };
+                const data = await startLoadingReservaStats(filtros);
+                if (data && data.success) {
+                    setEstadisticas(data.data);
+                } else {
+                    setError('No se pudieron cargar las estadísticas');
+                }
+            } else {
+                const data = await startLoadingReservaStats();
+                if (data && data.success) {
+                    setEstadisticas(data.data);
+                } else {
+                    setError('No se pudieron cargar las estadísticas');
+                }
+            }
+
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error);
+            setError('Error al cargar las estadísticas');
+        } finally {
+            setCargando(false);
+        }
+    };
+
+    useEffect(() => {
+        startLoadingReservaStats();
+    }, []);
+
+    /*  const [reservasEstado] = useState([
+         { estado: 'Pendientes', cantidad: 8, color: '#ff9800', porcentaje: 35 },
+         { estado: 'Confirmadas', cantidad: 12, color: '#2196f3', porcentaje: 52 },
+         { estado: 'Completadas', cantidad: 87, color: '#4caf50', porcentaje: 78 },
+         { estado: 'Canceladas', cantidad: 3, color: '#f44336', porcentaje: 13 }
+     ]); */
 
     const [topServicios] = useState([
         { nombre: 'Masaje Relajante', reservas: 34, ingresos: 12400, rating: 4.8 },
@@ -82,12 +153,12 @@ export const AdminPages = () => {
     const [alertas] = useState([
         { tipo: 'warning', mensaje: '3 empleados no han actualizado su disponibilidad para mañana', prioridad: 'alta' },
         { tipo: 'info', mensaje: 'Promoción de febrero termina en 5 días', prioridad: 'media' },
-        { tipo: 'error', mensaje: '2 reservas requieren confirmación urgente', prioridad: 'alta' }
+        { tipo: 'error', mensaje: `${estadisticas?.pendientes} reservas requieren confirmación urgente`, prioridad: 'alta' }
     ]);
 
     const MetricCard = ({ title, value, subtitle, icon, color, trend, trendValue }) => (
-        <Card sx={{ 
-            height: '100%', 
+        <Card sx={{
+            height: '100%',
             background: `linear-gradient(135deg, ${color}15, ${color}05)`,
             border: `1px solid ${color}30`,
             transition: 'all 0.3s ease',
@@ -100,8 +171,8 @@ export const AdminPages = () => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Box>
                         <Typography variant="h4" sx={{ fontWeight: 700, color: color, mb: 1 }}>
-                            {typeof value === 'number' && title.includes('Ingresos') 
-                                ? `$${value.toLocaleString()}` 
+                            {typeof value === 'number' && title.includes('Ingresos')
+                                ? `$${value.toLocaleString()}`
                                 : value}
                         </Typography>
                         <Typography variant="h6" sx={{ fontWeight: 600, color: '#333', mb: 0.5 }}>
@@ -174,7 +245,7 @@ export const AdminPages = () => {
             {alertas.length > 0 && (
                 <Box sx={{ mb: 3 }}>
                     {alertas.map((alerta, index) => (
-                        <Alert 
+                        <Alert
                             key={index}
                             severity={alerta.tipo}
                             sx={{ mb: 1 }}
@@ -195,19 +266,19 @@ export const AdminPages = () => {
                 <Grid item xs={12} sm={6} md={3}>
                     <MetricCard
                         title="Total Usuarios"
-                        value={metrics.totalUsuarios}
+                        value={users.length}
                         subtitle="Clientes registrados"
                         icon={<People />}
                         color="#667eea"
-                        trend="up"
+                        // trend="up"
                         trendValue={12}
                     />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                     <MetricCard
-                        title="Empleados Activos"
-                        value={metrics.empleadosActivos}
-                        subtitle={`${metrics.empleadosDisponibles} disponibles hoy`}
+                        title="Usuarios Activos"
+                        value={users.filter(user => user.activo).length}
+                        // subtitle={`${metrics.empleadosDisponibles} disponibles hoy`}
                         icon={<WorkOutline />}
                         color="#4caf50"
                     />
@@ -215,22 +286,22 @@ export const AdminPages = () => {
                 <Grid item xs={12} sm={6} md={3}>
                     <MetricCard
                         title="Reservas Hoy"
-                        value={metrics.reservasHoy}
-                        subtitle={`${metrics.reservasPendientes} pendientes`}
+                        value={estadisticas?.total}
+                        subtitle={`${estadisticas?.pendientes} pendientes`}
                         icon={<EventNote />}
                         color="#ff9800"
-                        trend="up"
-                        trendValue={8}
+                        // trend="up"
+                        // trendValue={metrics?.pendientes}
                     />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                     <MetricCard
-                        title="Ingresos del Mes"
-                        value={metrics.ingresosMes}
-                        subtitle="Comparado con mes anterior"
+                        title="Ingresos Totales"
+                        value={estadisticas?.ingresoTotal}
+                        subtitle="Ingresos totales del SPA"
                         icon={<AttachMoney />}
                         color="#8e7ab5"
-                        trend="up"
+                        // trend="up"
                         trendValue={23}
                     />
                 </Grid>
@@ -279,7 +350,7 @@ export const AdminPages = () => {
                                         description="Ver estadísticas"
                                         icon={<Assessment />}
                                         color="#8e7ab5"
-                                        onClick={() => navigate('/admin/reportes/ventas')}
+                                        onClick={() => navigate('/admin/reportes/empleados')}
                                     />
                                 </Grid>
                             </Grid>
@@ -295,31 +366,105 @@ export const AdminPages = () => {
                                 <EventNote sx={{ mr: 1, color: '#667eea' }} />
                                 Estado de Reservas
                             </Typography>
-                            {reservasEstado.map((item, index) => (
-                                <Box key={index} sx={{ mb: 2 }}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                            {item.estado}
-                                        </Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: 600, color: item.color }}>
-                                            {item.cantidad}
-                                        </Typography>
-                                    </Box>
-                                    <LinearProgress
-                                        variant="determinate"
-                                        value={item.porcentaje}
-                                        sx={{
-                                            height: 6,
-                                            borderRadius: 3,
-                                            bgcolor: `${item.color}20`,
-                                            '& .MuiLinearProgress-bar': {
-                                                bgcolor: item.color,
-                                                borderRadius: 3
-                                            }
-                                        }}
-                                    />
+                            {/* Pendientes */}
+                            <Box sx={{ mb: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                        Pendientes
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: colores.pendientes }}>
+                                        {estadisticas?.pendientes}
+                                    </Typography>
                                 </Box>
-                            ))}
+                                <LinearProgress
+                                    variant="determinate"
+                                    value={calcularPorcentaje(estadisticas?.pendientes, estadisticas?.total)}
+                                    sx={{
+                                        height: 6,
+                                        borderRadius: 3,
+                                        bgcolor: `${colores.pendientes}20`,
+                                        '& .MuiLinearProgress-bar': {
+                                            bgcolor: colores.pendientes,
+                                            borderRadius: 3
+                                        }
+                                    }}
+                                />
+                            </Box>
+
+                            {/* Confirmadas */}
+                            <Box sx={{ mb: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                        Confirmadas
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: colores.confirmadas }}>
+                                        {estadisticas?.confirmadas}
+                                    </Typography>
+                                </Box>
+                                <LinearProgress
+                                    variant="determinate"
+                                    value={calcularPorcentaje(estadisticas?.confirmadas, estadisticas?.total)}
+                                    sx={{
+                                        height: 6,
+                                        borderRadius: 3,
+                                        bgcolor: `${colores.confirmadas}20`,
+                                        '& .MuiLinearProgress-bar': {
+                                            bgcolor: colores.confirmadas,
+                                            borderRadius: 3
+                                        }
+                                    }}
+                                />
+                            </Box>
+
+                            {/* Completadas */}
+                            <Box sx={{ mb: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                        Completadas
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: colores.completadas }}>
+                                        {estadisticas?.completadas}
+                                    </Typography>
+                                </Box>
+                                <LinearProgress
+                                    variant="determinate"
+                                    value={calcularPorcentaje(estadisticas?.completadas, estadisticas?.total)}
+                                    sx={{
+                                        height: 6,
+                                        borderRadius: 3,
+                                        bgcolor: `${colores.completadas}20`,
+                                        '& .MuiLinearProgress-bar': {
+                                            bgcolor: colores.completadas,
+                                            borderRadius: 3
+                                        }
+                                    }}
+                                />
+                            </Box>
+
+                            {/* Canceladas */}
+                            <Box sx={{ mb: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                        Canceladas
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: colores.canceladas }}>
+                                        {estadisticas?.canceladas}
+                                    </Typography>
+                                </Box>
+                                <LinearProgress
+                                    variant="determinate"
+                                    value={calcularPorcentaje(estadisticas?.canceladas, estadisticas?.total)}
+                                    sx={{
+                                        height: 6,
+                                        borderRadius: 3,
+                                        bgcolor: `${colores.canceladas}20`,
+                                        '& .MuiLinearProgress-bar': {
+                                            bgcolor: colores.canceladas,
+                                            borderRadius: 3
+                                        }
+                                    }}
+                                />
+                            </Box>
                         </CardContent>
                     </Card>
                 </Grid>
@@ -417,25 +562,25 @@ export const AdminPages = () => {
                                 </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                <Chip 
-                                    label="Activos" 
-                                    size="small" 
+                                <Chip
+                                    label="Activos"
+                                    size="small"
                                     sx={{ bgcolor: '#4caf5020', color: '#4caf50' }}
                                 />
                                 <Typography variant="body2">{metrics.empleadosActivos}</Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                <Chip 
-                                    label="Ocupados" 
-                                    size="small" 
+                                <Chip
+                                    label="Ocupados"
+                                    size="small"
                                     sx={{ bgcolor: '#ff980020', color: '#ff9800' }}
                                 />
                                 <Typography variant="body2">3</Typography>
                             </Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Chip 
-                                    label="Descanso" 
-                                    size="small" 
+                                <Chip
+                                    label="Descanso"
+                                    size="small"
                                     sx={{ bgcolor: '#f4433620', color: '#f44336' }}
                                 />
                                 <Typography variant="body2">0</Typography>

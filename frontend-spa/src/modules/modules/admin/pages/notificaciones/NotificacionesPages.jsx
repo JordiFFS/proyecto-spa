@@ -97,8 +97,6 @@ export const NotificacionesPages = () => {
         startClearMessage
     } = useNotificacionesStore();
 
-    console.log('estadisticas', estadisticas);
-
     useMQTTNotifications();
 
     const {

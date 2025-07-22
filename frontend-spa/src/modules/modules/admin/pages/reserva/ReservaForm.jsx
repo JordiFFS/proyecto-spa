@@ -20,7 +20,7 @@ import {
 } from '@mui/material';
 import { Save, Cancel, Person, Work, Schedule, AttachMoney } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useAuditoriaStore, useReservaStore } from '../../../../../store';
+import { useAuditoriaStore, useNotificacionesStore, useReservaStore } from '../../../../../store';
 import { useGetComboxBox } from '../../../../components';
 import { useAuthStore } from '../../../../../hooks';
 
@@ -90,6 +90,8 @@ export const ReservaForm = () => {
 
     const { startSavingAuditoria } = useAuditoriaStore();
 
+    const { startSavingNotificacion } = useNotificacionesStore();
+
     const {
         users_cbx,
         userRol_cbx,
@@ -100,6 +102,87 @@ export const ReservaForm = () => {
     } = useGetComboxBox();
 
     const isEditing = Boolean(active?.id);
+
+    const crearNotificacionReserva = async (reservaData, accion) => {
+        try {
+            // Notificación para el cliente
+            const notificacionCliente = {
+                usuario_id: reservaData.usuario_id,
+                tipo: 'reserva',
+                titulo: accion === 'CREATE'
+                    ? '✅ Reserva Confirmada'
+                    : '📝 Reserva Actualizada',
+                mensaje: accion === 'CREATE'
+                    ? `Tu reserva ha sido confirmada exitosamente para el ${reservaData.fecha} a las ${reservaData.hora_inicio}.`
+                    : `Tu reserva del ${reservaData.fecha} a las ${reservaData.hora_inicio} ha sido actualizada.`,
+                canal: 'app',
+                datos_adicionales: {
+                    reserva_id: reservaData.id,
+                    servicio_id: reservaData.servicio_id,
+                    empleado_id: reservaData.empleado_id,
+                    url_accion: `/reservas/${reservaData.id}`
+                }
+            };
+
+            // Notificación para el empleado
+            const notificacionEmpleado = {
+                usuario_id: reservaData.empleado_id,
+                tipo: 'empleado',
+                titulo: accion === 'CREATE'
+                    ? '🔔 Nueva Reserva Asignada'
+                    : '📋 Reserva Actualizada',
+                mensaje: accion === 'CREATE'
+                    ? `Tienes una nueva reserva asignada para el ${reservaData.fecha} a las ${reservaData.hora_inicio}.`
+                    : `Una de tus reservas del ${reservaData.fecha} a las ${reservaData.hora_inicio} ha sido actualizada.`,
+                canal: 'app',
+                datos_adicionales: {
+                    reserva_id: reservaData.id,
+                    servicio_id: reservaData.servicio_id,
+                    empleado_id: reservaData.empleado_id,
+                    url_accion: `/empleado/reservas/${reservaData.id}`
+                }
+            };
+
+            // Crear notificaciones en paralelo
+            await Promise.allSettled([
+                startSavingNotificacion(notificacionCliente),
+                startSavingNotificacion(notificacionEmpleado)
+            ]);
+
+        } catch (error) {
+            console.error('❌ Error al crear notificaciones de reserva:', error);
+        }
+    };
+
+    const programarRecordatorioReserva = async (reservaData) => {
+        try {
+            // Calcular fecha del recordatorio (24 horas antes)
+            const fechaReserva = new Date(`${reservaData.fecha}T${reservaData.hora_inicio}:00`);
+            const fechaRecordatorio = new Date(fechaReserva.getTime() - (24 * 60 * 60 * 1000));
+
+            // Solo programar si la fecha del recordatorio es futura
+            if (fechaRecordatorio > new Date()) {
+                const notificacionRecordatorio = {
+                    usuario_id: reservaData.usuario_id,
+                    tipo: 'recordatorio',
+                    titulo: '⏰ Recordatorio de Reserva',
+                    mensaje: `Recordatorio: Tienes una reserva mañana ${reservaData.fecha} a las ${reservaData.hora_inicio}. ¡No olvides asistir!`,
+                    canal: 'app',
+                    programada_para: fechaRecordatorio,
+                    datos_adicionales: {
+                        reserva_id: reservaData.id,
+                        servicio_id: reservaData.servicio_id,
+                        empleado_id: reservaData.empleado_id,
+                        url_accion: `/reservas/${reservaData.id}`
+                    }
+                };
+
+                await startSavingNotificacion(notificacionRecordatorio);
+            }
+        } catch (error) {
+            console.error('❌ Error al programar recordatorio:', error);
+        }
+    };
 
     // Cargar datos de los comboboxes
     useEffect(() => {
@@ -140,31 +223,42 @@ export const ReservaForm = () => {
                 // Guardar la reserva
                 const result = await startSavingReserva(reservaData);
 
-                // Si la reserva se guardó exitosamente, crear el registro de auditoría
+                // Si la reserva se guardó exitosamente
                 if (result && result.success) {
+                    const accion = active?.id ? "UPDATE" : "CREATE";
+                    const reservaCompleta = { ...reservaData, id: result.data.id };
+
+                    // Crear el registro de auditoría
                     const auditoriaData = {
-                        usuario_id: user.id, // O el ID del usuario logueado
-                        accion: active?.id ? "UPDATE" : "CREATE",
+                        usuario_id: user.id,
+                        accion: accion,
                         tabla_afectada: "reservas",
                         registro_id: result.data.id,
                         valores_anteriores: active?.id ? active : null,
                         valores_nuevos: result.data,
                         resultado: "exitoso",
-                        // valores_nuevos: `Acción realizada por ${user.nombre} con rol ${user.rol} y telefono ${user.telefono}`,
                         descripcion: active?.id
                             ? `Reserva actualizada exitosamente`
                             : `Reserva creada exitosamente`
                     };
 
-                    // Registrar en auditoría (sin await para que no bloquee)
+                    // Registrar en auditoría
                     startSavingAuditoria(auditoriaData).catch(error => {
                         console.error('Error al registrar auditoría:', error);
                     });
+
+                    // 🔥 CREAR NOTIFICACIONES DE RESERVA
+                    await crearNotificacionReserva(reservaCompleta, accion);
+
+                    // 🔥 PROGRAMAR RECORDATORIO (solo para nuevas reservas)
+                    if (!active?.id) {
+                        await programarRecordatorioReserva(reservaCompleta);
+                    }
                 }
             } catch (error) {
                 // Si hay error, también registrar en auditoría
                 const auditoriaData = {
-                    usuario_id: user.id, // O el ID del usuario logueado
+                    usuario_id: user.id,
                     accion: active?.id ? "UPDATE" : "CREATE",
                     tabla_afectada: "reservas",
                     registro_id: active?.id || null,

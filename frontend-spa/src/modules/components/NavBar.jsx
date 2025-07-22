@@ -46,8 +46,6 @@ export const NavBar = () => {
         estadisticas,
     } = useNotificacionesStore();
 
-    console.log('estadisticas navbar', estadisticas);
-
     const handleMenuOpen = (menuKey, event) => {
         setMenuStates(prev => ({
             ...prev,
