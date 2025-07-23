@@ -22,7 +22,7 @@ import { Save, Cancel, Person, Work, Schedule, AttachMoney } from '@mui/icons-ma
 import { useNavigate } from 'react-router-dom';
 import { useAuditoriaStore, useNotificacionesStore, useReservaStore } from '../../../../../store';
 import { useGetComboxBox } from '../../../../components';
-import { useAuthStore, useMQTTNotifications } from '../../../../../hooks';
+import { useAuthStore } from '../../../../../hooks';
 
 // Estados predefinidos para reservas
 const estadosReserva = [
@@ -85,8 +85,6 @@ export const ReservaForm = () => {
         startSavingReserva,
         startClearMessage,
     } = useReservaStore();
-
-    useMQTTNotifications();
 
     const { user } = useAuthStore();
 
