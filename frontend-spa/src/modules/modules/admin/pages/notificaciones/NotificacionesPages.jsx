@@ -72,12 +72,15 @@ import { useFormik } from 'formik';
 import { useAuthStore } from '../../../../../hooks';
 
 import { useMQTTNotifications } from '../../../../../hooks';
+import { useNavigate } from 'react-router-dom';
 
 export const NotificacionesPages = () => {
 
 
     const [showEmailOptions, setShowEmailOptions] = useState(false);
     const [showUsuariosList, setShowUsuariosList] = useState(false);
+
+    const navigate = useNavigate();
 
     const {
         isLoading,
@@ -137,7 +140,7 @@ export const NotificacionesPages = () => {
         initialValues: {
             titulo: '',
             mensaje: '',
-            tipo: 'info',
+            tipo: 'reserva', // Cambiar de 'info' a 'reserva'
             canal: 'app',
             usuario_id: '',
             fecha_programada: '',
@@ -178,12 +181,14 @@ export const NotificacionesPages = () => {
                     });
 
                     await startEnvioMasivoNotificaciones(values, destinatarios);
+                    navigate('/notificaciones');
                 } else if (enviarPorEmail) {
                     // Envío individual con email
                     const usuario = user_cbx.find(u => u.value === values.usuario_id);
                     const emailDestinatario = usuario?.email || user?.email;
 
                     await startSavingNotificacionWithEmail(values, true, emailDestinatario);
+                    console.log('emailDestinatario', emailDestinatario);
                 } else {
                     // Envío normal sin email
                     await startSavingNotificacion(values);
@@ -429,10 +434,11 @@ export const NotificacionesPages = () => {
 
     const getTipoColor = (tipo) => {
         switch (tipo) {
-            case 'info': return 'info';
-            case 'success': return 'success';
-            case 'warning': return 'warning';
-            case 'error': return 'error';
+            case 'reserva': return 'info';
+            case 'recordatorio': return 'success';
+            case 'promocion': return 'warning';
+            case 'sistema': return 'error';
+            case 'empleado': return 'default';
             default: return 'default';
         }
     };
@@ -604,10 +610,11 @@ export const NotificacionesPages = () => {
                                         onChange={(e) => handleFilterChange('tipo', e.target.value)}
                                     >
                                         <MenuItem value="">Todos</MenuItem>
-                                        <MenuItem value="info">Info</MenuItem>
-                                        <MenuItem value="success">Éxito</MenuItem>
-                                        <MenuItem value="warning">Advertencia</MenuItem>
-                                        <MenuItem value="error">Error</MenuItem>
+                                        <MenuItem value="reserva">Reserva</MenuItem>
+                                        <MenuItem value="recordatorio">Recordatorio</MenuItem>
+                                        <MenuItem value="promocion">Promoción</MenuItem>
+                                        <MenuItem value="sistema">Sistema</MenuItem>
+                                        <MenuItem value="empleado">Empleado</MenuItem>
                                     </Select>
                                 </FormControl>
                             </Grid>
@@ -838,6 +845,7 @@ export const NotificacionesPages = () => {
                 open={Boolean(menuAnchorEl)}
                 onClose={handleMenuClose}
             >
+                {/* Editar */}
                 {tienePermiso('editar') && (
                     <MenuItem onClick={() => handleOpenModal(selectedNotificacion)}>
                         <ListItemIcon>
@@ -847,6 +855,7 @@ export const NotificacionesPages = () => {
                     </MenuItem>
                 )}
 
+                {/* Marcar como leída */}
                 {selectedNotificacion && !selectedNotificacion.leida && (
                     <MenuItem onClick={() => handleMarcarComoLeida(selectedNotificacion._id)}>
                         <ListItemIcon>
@@ -856,6 +865,7 @@ export const NotificacionesPages = () => {
                     </MenuItem>
                 )}
 
+                {/* Marcar como enviada */}
                 {selectedNotificacion && !selectedNotificacion.enviada && tienePermiso('marcar_enviada') && (
                     <MenuItem onClick={() => handleMarcarComoEnviada(selectedNotificacion._id)}>
                         <ListItemIcon>
@@ -865,6 +875,7 @@ export const NotificacionesPages = () => {
                     </MenuItem>
                 )}
 
+                {/* Divider y Eliminar */}
                 {tienePermiso('eliminar') && (
                     <>
                         <Divider />

@@ -30,7 +30,7 @@ import {
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../../hooks';
+import { useAuthStore, useMQTTNotifications } from '../../hooks';
 import { useNotificacionesStore } from '../../store';
 import { useEffect } from 'react';
 
@@ -82,6 +82,9 @@ export const NavBar = () => {
         handleUserMenuClose();
         navigate('/auth/login');
     };
+
+    useMQTTNotifications();
+
 
     // Configuración de módulos por rol
     const getModulesByRole = () => {

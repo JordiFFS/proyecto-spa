@@ -1,5 +1,5 @@
 const mqtt = require('mqtt');
-require('dotenv').config(); // Asegúrate de cargar variables
+require('dotenv').config();
 
 const brokerUrl = process.env.MQTT_URL || 'mqtt://localhost:1883';
 

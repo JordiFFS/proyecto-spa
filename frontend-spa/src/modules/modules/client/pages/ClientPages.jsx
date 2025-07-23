@@ -335,7 +335,7 @@ export const ClientPages = () => {
             <Badge badgeContent={notificaciones.filter(n => !n.leida).length} color="error">
               <IconButton
                 sx={{ bgcolor: '#A8D8B9', color: '#fff' }}
-                onClick={() => navigate('/cliente/notificaciones')}
+                onClick={() => navigate('/client/notificaciones')}
               >
                 <Notifications />
               </IconButton>
@@ -348,7 +348,7 @@ export const ClientPages = () => {
                 color: '#333',
                 '&:hover': { bgcolor: '#98c9a9' }
               }}
-              onClick={() => navigate('/cliente/reservar')}
+              onClick={() => navigate('/client/reservas')}
             >
               Nueva Reserva
             </Button>
@@ -365,7 +365,7 @@ export const ClientPages = () => {
             subtitle={`${clientStats.reservasCompletadas} completadas`}
             icon={<EventNote />}
             color="#A8D8B9"
-            onClick={() => navigate('/cliente/historial')}
+            onClick={() => navigate('/client/historial')}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -409,7 +409,7 @@ export const ClientPages = () => {
                 </Typography>
                 <Button
                   startIcon={<BookOnline />}
-                  onClick={() => navigate('/cliente/reservar')}
+                  onClick={() => navigate('/client/reservas')}
                   size="small"
                   variant="contained"
                   sx={{ bgcolor: '#A8D8B9', '&:hover': { bgcolor: '#98c9a9' } }}
@@ -426,7 +426,7 @@ export const ClientPages = () => {
                   <Button
                     variant="outlined"
                     startIcon={<Add />}
-                    onClick={() => navigate('/cliente/reservar')}
+                    onClick={() => navigate('/client/reservas')}
                   >
                     Hacer una Reserva
                   </Button>
@@ -510,7 +510,7 @@ export const ClientPages = () => {
                 </Typography>
                 <Button
                   startIcon={<History />}
-                  onClick={() => navigate('/cliente/historial')}
+                  onClick={() => navigate('/client/historial')}
                   size="small"
                 >
                   Ver Todo
@@ -610,7 +610,7 @@ export const ClientPages = () => {
                         <Button
                           size="small"
                           fullWidth
-                          onClick={() => navigate(`/cliente/reservar?servicio=${servicio.id}`)}
+                          onClick={() => navigate(`/client/reservas?servicio=${servicio.id}`)}
                         >
                           Reservar
                         </Button>
@@ -631,7 +631,7 @@ export const ClientPages = () => {
                 </Typography>
                 <IconButton
                   size="small"
-                  onClick={() => navigate('/cliente/notificaciones')}
+                  onClick={() => navigate('/clientenotificaciones')}
                 >
                   <Visibility />
                 </IconButton>
@@ -691,7 +691,7 @@ export const ClientPages = () => {
             bgcolor: '#98c9a9'
           }
         }}
-        onClick={() => navigate('/cliente/reservar')}
+        onClick={() => navigate('/client/reservas')}
       >
         <Add />
       </Fab>
